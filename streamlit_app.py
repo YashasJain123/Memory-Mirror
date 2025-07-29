@@ -10,48 +10,35 @@ from transformers import pipeline
 
 # --- Setup ---
 st.set_page_config("Memory Mirror", layout="wide")
-st.title("🧠 Memory Mirror - AI-Powered Journal")
+st.title("ðŸ§  Memory Mirror - AI-Powered Journal")
 
-# --- File paths ---
 USERS_FILE = "users.json"
-
-# --- Utilities ---
-def get_email_hash(email):
-    return sha256(email.encode()).hexdigest()
+def get_email_hash(email): return sha256(email.encode()).hexdigest()
 
 def load_users():
-    if os.path.exists(USERS_FILE):
-        with open(USERS_FILE, "r") as f:
-            return json.load(f)
-    return {}
+    return json.load(open(USERS_FILE)) if os.path.exists(USERS_FILE) else {}
 
-def save_users(users):
-    with open(USERS_FILE, "w") as f:
-        json.dump(users, f)
+def save_users(users): json.dump(users, open(USERS_FILE, "w"))
 
 def load_entries(email):
     file = f"{get_email_hash(email)}.json"
-    if os.path.exists(file):
-        with open(file, "r") as f:
-            return json.load(f)
-    return []
+    return json.load(open(file)) if os.path.exists(file) else []
 
 def save_entries(email, entries):
     file = f"{get_email_hash(email)}.json"
-    with open(file, "w") as f:
-        json.dump(entries, f, indent=2)
+    json.dump(entries, open(file, "w"), indent=2)
 
 def load_sentiment_model():
     return pipeline("sentiment-analysis")
 
 sentiment_model = load_sentiment_model()
 
-# --- Login System ---
+# --- Auth ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
 if not st.session_state.logged_in:
-    st.sidebar.header("🔐 Login / Sign Up")
+    st.sidebar.header("ðŸ” Login / Sign Up")
     mode = st.sidebar.radio("Mode", ["Login", "Sign Up"])
     email = st.sidebar.text_input("Email")
     password = st.sidebar.text_input("Password", type="password")
@@ -67,7 +54,7 @@ if not st.session_state.logged_in:
                 st.rerun()
             else:
                 st.sidebar.error("Incorrect credentials.")
-        else:  # Sign Up
+        else:
             if email in users:
                 st.sidebar.warning("Account already exists.")
             else:
@@ -76,7 +63,6 @@ if not st.session_state.logged_in:
                 st.success("Account created. Please log in.")
                 st.rerun()
 
-# --- Main App ---
 if st.session_state.get("logged_in"):
     email = st.session_state.email
     entries = load_entries(email)
@@ -91,15 +77,13 @@ if st.session_state.get("logged_in"):
 
     name = st.session_state.name
     page = st.sidebar.radio("Navigate", [
-        "📝 New Entry", "📜 Past Journals", "🧠 Insights", "📊 Mood Graph", "📄 Download PDF", "💌 Future Note"
+        "ðŸ“ New Entry", "ðŸ“œ Past Journals", "ðŸ§  Insights", "ðŸ“Š Mood Graph", "ðŸ“„ Download PDF", "ðŸ’Œ Future Note"
     ])
 
-    # === NEW ENTRY ===
-    if page == "📝 New Entry":
-        st.header(f"Dear {name}, what’s on your mind today?")
-        st.markdown("💡 *Tip: If you like to write your diary on paper and still want to use this app, use Google Camera (or any scanner) to copy the text and paste it here.*")
+    if page == "ðŸ“ New Entry":
+        st.header(f"Dear {name}, whatâ€™s on your mind today?")
+        st.markdown("ðŸ’¡ *Tip: If you like to write your diary on paper and still want to use this app, use Google Camera (or any scanner) to copy the text and paste it here.*")
         journal = st.text_area("Start writing here...", height=200)
-
         if st.button("Save & Analyze"):
             if journal.strip():
                 sentiment = sentiment_model(journal)[0]
@@ -110,22 +94,20 @@ if st.session_state.get("logged_in"):
                 }
                 entries.append(new_entry)
                 save_entries(email, entries)
-                st.success("✅ Entry saved!")
+                st.success("âœ… Entry saved!")
                 st.markdown(f"**Sentiment:** {sentiment['label']}")
             else:
                 st.warning("Please write something.")
 
-    # === PAST JOURNALS ===
-    elif page == "📜 Past Journals":
-        st.header("📜 Your Journal Entries")
+    elif page == "ðŸ“œ Past Journals":
+        st.header("ðŸ“œ Your Journal Entries")
         for e in reversed(entries):
             with st.expander(e["date"]):
                 st.write(e["text"])
                 st.markdown(f"**Sentiment:** {e['sentiment']}")
 
-    # === INSIGHTS ===
-    elif page == "🧠 Insights":
-        st.header("🧠 Mood Overview")
+    elif page == "ðŸ§  Insights":
+        st.header("ðŸ§  Mood Overview")
         if len(entries) < 2:
             st.info("Write more entries to view insights.")
         else:
@@ -133,8 +115,6 @@ if st.session_state.get("logged_in"):
             counts = pd.Series(sentiments).value_counts()
             st.write("Mood summary based on all entries:")
             st.bar_chart(counts)
-
-            # Streak
             streak = 1
             for i in range(len(entries)-2, -1, -1):
                 d1 = datetime.strptime(entries[i]["date"], "%Y-%m-%d %H:%M").date()
@@ -143,11 +123,10 @@ if st.session_state.get("logged_in"):
                     streak += 1
                 else:
                     break
-            st.info(f"🔥 Current journaling streak: {streak} day(s)")
+            st.info(f"ðŸ”¥ Current journaling streak: {streak} day(s)")
 
-    # === MOOD GRAPH ===
-    elif page == "📊 Mood Graph":
-        st.header("📊 Mood Over Time")
+    elif page == "ðŸ“Š Mood Graph":
+        st.header("ðŸ“Š Mood Over Time")
         if len(entries) < 2:
             st.info("Not enough entries for a graph.")
         else:
@@ -158,36 +137,49 @@ if st.session_state.get("logged_in"):
             df.set_index("Date", inplace=True)
             st.line_chart(df)
 
-    # === DOWNLOAD PDF ===
-    elif page == "📄 Download PDF":
-        st.header("📄 Export Your Journal as PDF")
+    elif page == "ðŸ“„ Download PDF":
+        st.header("ðŸ“„ Export Your Journal as PDF")
         pdf = FPDF()
         pdf.set_auto_page_break(auto=True, margin=15)
         pdf.set_font("Arial", size=12)
         for e in entries:
             pdf.add_page()
-            pdf.multi_cell(0, 10, f"{e['date']}\n\nSentiment: {e['sentiment']}\n\n{e['text']}")
+            pdf.multi_cell(0, 10, f"{e['date']}
+
+Sentiment: {e['sentiment']}
+
+{e['text']}")
         pdf_buffer = io.BytesIO()
         pdf.output(pdf_buffer)
         pdf_buffer.seek(0)
         st.download_button("Download PDF", data=pdf_buffer, file_name="my_journal.pdf", mime="application/pdf")
 
-    # === FUTURE NOTE ===
-    elif page == "💌 Future Note":
-        st.header("💌 Write a Note to Future You")
+    elif page == "ðŸ’Œ Future Note":
+        st.header("ðŸ’Œ Message to Future You")
         future_file = f"{get_email_hash(email)}_future.json"
+
         if os.path.exists(future_file):
             with open(future_file, "r") as f:
                 note = json.load(f)
                 reveal_date = datetime.strptime(note["reveal_date"], "%Y-%m-%d")
                 if datetime.now().date() >= reveal_date.date():
-                    st.success("🗓️ Here's your note to yourself:")
-                    st.markdown(f"**Note written on {note['written_on']}:**  \n{note['text']}")
+                    st.success(f"ðŸ—“ï¸ Note from {note['written_on']} unlocked:")
+                    st.markdown(note["text"])
                 else:
-                    st.info(f"⏳ Your note will unlock on **{reveal_date.date()}**.")
+                    st.info(f"â³ This note will unlock on {note['reveal_date']}.")
         else:
-            note_text = st.text_area("What would you like to tell your future self?")
+            choice = st.radio("How do you want to create the note?", ["Write my own", "Generate by AI"])
             days = st.slider("Reveal after (days)", 1, 30, 7)
+
+            if choice == "Write my own":
+                note_text = st.text_area("Write your message here...")
+            else:
+                # Generate based on journal data
+                sentiments = [e["sentiment"] for e in entries]
+                pos = sentiments.count("POSITIVE")
+                neg = sentiments.count("NEGATIVE")
+                note_text = f"Hey {name}, you've logged {len(entries)} entries so far. You've had {pos} positive and {neg} negative moments. I'm proud of your effort. Keep going ðŸ’ª"
+
             if st.button("Save Note"):
                 note = {
                     "text": note_text,
@@ -196,4 +188,4 @@ if st.session_state.get("logged_in"):
                 }
                 with open(future_file, "w") as f:
                     json.dump(note, f)
-                st.success(f"✅ Saved! Your note will unlock in {days} day(s).")
+                st.success("âœ… Your note is saved and will unlock soon.")
