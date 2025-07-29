@@ -8,10 +8,11 @@ from fpdf import FPDF
 from hashlib import sha256
 from transformers import pipeline
 
-# --- Setup ---
+# --- Page Setup ---
 st.set_page_config("Memory Mirror", layout="wide")
 st.title("🧠 Memory Mirror - AI-Powered Journal")
 
+# --- Paths ---
 USERS_FILE = "users.json"
 
 def get_email_hash(email):
@@ -32,7 +33,11 @@ def save_entries(email, entries):
     json.dump(entries, open(file, "w"), indent=2)
 
 def load_sentiment_model():
-    return pipeline("sentiment-analysis", device=-1)
+    try:
+        return pipeline("sentiment-analysis", device=-1)
+    except Exception as e:
+        st.error("⚠️ Could not load AI model. Please try again later.")
+        return None
 
 sentiment_model = load_sentiment_model()
 
@@ -57,7 +62,7 @@ if not st.session_state.logged_in:
                 st.rerun()
             else:
                 st.sidebar.error("Incorrect email or password.")
-        else:  # Sign Up
+        else:
             if email in users:
                 st.sidebar.warning("Account already exists. Please login.")
             else:
@@ -66,7 +71,7 @@ if not st.session_state.logged_in:
                 st.success("Account created. Please log in.")
                 st.rerun()
 
-# --- Main App ---
+# --- Main App After Login ---
 if st.session_state.get("logged_in"):
     email = st.session_state.email
     entries = load_entries(email)
@@ -85,33 +90,43 @@ if st.session_state.get("logged_in"):
         "📊 Mood Graph", "📄 Download PDF", "💌 Future Note"
     ])
 
-    # --- New Entry ---
+    # --- Journal Entry ---
     if page == "📝 New Entry":
         st.header(f"Dear {name}, what’s on your mind today?")
         st.markdown("💡 *Tip: If you like to write your diary on paper and still want to use this app, use Google Camera (or any scanner) to copy the text and paste it here.*")
         journal = st.text_area("Start writing here...", height=200)
+
         if st.button("Save & Analyze"):
             if journal.strip():
-                sentiment = sentiment_model(journal)[0]
-                new_entry = {
-                    "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                    "text": journal,
-                    "sentiment": sentiment["label"]
-                }
-                entries.append(new_entry)
-                save_entries(email, entries)
-                st.success("✅ Entry saved!")
-                st.markdown(f"**Sentiment:** {sentiment['label']}")
+                if sentiment_model:
+                    try:
+                        sentiment = sentiment_model(journal)[0]
+                        new_entry = {
+                            "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                            "text": journal,
+                            "sentiment": sentiment["label"]
+                        }
+                        entries.append(new_entry)
+                        save_entries(email, entries)
+                        st.success("✅ Entry saved!")
+                        st.markdown(f"**Sentiment:** {sentiment['label']}")
+                    except:
+                        st.error("⚠️ AI analysis failed.")
+                else:
+                    st.warning("AI model unavailable.")
             else:
-                st.warning("Please write something.")
+                st.warning("Please write something first.")
 
     # --- Past Journals ---
     elif page == "📜 Past Journals":
         st.header("📜 Your Journal Entries")
-        for e in reversed(entries):
-            with st.expander(e["date"]):
-                st.write(e["text"])
-                st.markdown(f"**Sentiment:** {e['sentiment']}")
+        if not entries:
+            st.info("No entries yet.")
+        else:
+            for e in reversed(entries):
+                with st.expander(e["date"]):
+                    st.write(e["text"])
+                    st.markdown(f"**Sentiment:** {e['sentiment']}")
 
     # --- Insights ---
     elif page == "🧠 Insights":
@@ -121,25 +136,24 @@ if st.session_state.get("logged_in"):
         else:
             sentiments = [e["sentiment"] for e in entries]
             counts = pd.Series(sentiments).value_counts()
-            st.write("Mood summary based on all entries:")
             st.bar_chart(counts)
 
-            # Journaling streak
+            # Streak
             streak = 1
-            for i in range(len(entries)-2, -1, -1):
+            for i in range(len(entries) - 2, -1, -1):
                 d1 = datetime.strptime(entries[i]["date"], "%Y-%m-%d %H:%M").date()
                 d2 = datetime.strptime(entries[i+1]["date"], "%Y-%m-%d %H:%M").date()
                 if (d2 - d1).days == 1:
                     streak += 1
                 else:
                     break
-            st.info(f"🔥 Current journaling streak: {streak} day(s)")
+            st.success(f"🔥 Current journaling streak: {streak} day(s)")
 
     # --- Mood Graph ---
     elif page == "📊 Mood Graph":
         st.header("📊 Mood Over Time")
         if len(entries) < 2:
-            st.info("Not enough entries for a graph.")
+            st.info("Not enough data for graph.")
         else:
             df = pd.DataFrame({
                 "Date": [pd.to_datetime(e["date"]) for e in entries],
@@ -148,17 +162,21 @@ if st.session_state.get("logged_in"):
             df.set_index("Date", inplace=True)
             st.line_chart(df)
 
-    # --- Download PDF ---
+    # --- PDF Download ---
     elif page == "📄 Download PDF":
-        st.header("📄 Export Your Journal as PDF")
-        pdf = FPDF()
-        pdf.set_auto_page_break(auto=True, margin=15)
-        pdf.set_font("Arial", size=12)
-        for e in entries:
-            pdf.add_page()
-            pdf.multi_cell(0, 10, f"{e['date']}\n\nSentiment: {e['sentiment']}\n\n{e['text']}")
-        pdf_output = pdf.output(dest='S').encode('latin1')
-st.download_button("Download PDF", data=pdf_output, file_name="my_journal.pdf", mime="application/pdf")
+        st.header("📄 Export Your Journal")
+        if not entries:
+            st.info("No entries yet.")
+        else:
+            pdf = FPDF()
+            pdf.set_auto_page_break(auto=True, margin=15)
+            pdf.set_font("Arial", size=12)
+            for e in entries:
+                pdf.add_page()
+                pdf.multi_cell(0, 10, f"{e['date']}\n\nSentiment: {e['sentiment']}\n\n{e['text']}")
+            pdf_output = pdf.output(dest='S').encode('latin1')
+            st.download_button("Download PDF", data=pdf_output, file_name="my_journal.pdf", mime="application/pdf")
+
     # --- Future Note ---
     elif page == "💌 Future Note":
         st.header("💌 Message to Future You")
@@ -183,7 +201,7 @@ st.download_button("Download PDF", data=pdf_output, file_name="my_journal.pdf", 
                 sentiments = [e["sentiment"] for e in entries]
                 pos = sentiments.count("POSITIVE")
                 neg = sentiments.count("NEGATIVE")
-                note_text = f"Hey {name}, you've written {len(entries)} entries. You've had {pos} positive and {neg} difficult moments. You're growing. Keep going 💪"
+                note_text = f"Hey {name}, you've written {len(entries)} entries. You've had {pos} positive and {neg} difficult moments. You're growing stronger. Keep going 💪"
 
             if st.button("Save Note"):
                 note = {
@@ -193,4 +211,4 @@ st.download_button("Download PDF", data=pdf_output, file_name="my_journal.pdf", 
                 }
                 with open(future_file, "w") as f:
                     json.dump(note, f)
-                st.success("✅ Your note is saved and will unlock soon.")
+                st.success("✅ Your note is saved and will unlock on the selected day.")
