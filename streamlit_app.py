@@ -1,4 +1,3 @@
-
 import streamlit as st
 import json
 import os
@@ -8,14 +7,16 @@ from transformers import pipeline
 from sentence_transformers import SentenceTransformer, util
 from collections import Counter
 import pandas as pd
+from fpdf import FPDF
+import io
 
 st.set_page_config(page_title="Memory Mirror", layout="wide")
-st.title("🧠 Memory Mirror - Secure AI Journal")
+st.title("Memory Mirror")
 
-# Sidebar login
-st.sidebar.header("🔐 Login")
+# Login
+st.sidebar.header("Login")
 username = st.sidebar.text_input("Your Name")
-password = st.sidebar.text_input("Your Password", type="password")
+password = st.sidebar.text_input("Password", type="password")
 
 if username and password:
     user_id = username.strip().lower().replace(" ", "_")
@@ -33,38 +34,42 @@ if username and password:
     def load_embedder():
         return SentenceTransformer("paraphrase-MiniLM-L6-v2")
 
+    # Load existing entries
     if os.path.exists(filename):
         with open(filename, "r") as f:
             entries = json.load(f)
     else:
         entries = []
 
-    page = st.sidebar.radio("📂 Select View", [
-        "📝 New Entry",
-        "📜 View Past Journals",
-        "🧠 Insights Summary",
-        "📊 Mood Graph",
-        "📄 Download PDF",
-        "🧱 Positive Wall"
+    # Page selector
+    page = st.sidebar.radio("Choose View", [
+        "New Entry",
+        "Past Journals",
+        "Insights",
+        "Mood Graph",
+        "Download PDF",
+        "Positive Entries"
     ])
 
-    if page == "📝 New Entry":
-        st.header(f"Hi {username.title()}, write your journal entry:")
+    # New journal entry
+    if page == "New Entry":
+        st.header("Write your journal")
+
+        # Daily prompt
         prompts = [
             "What made you smile today?",
-            "Is there something you’re grateful for?",
-            "What drained your energy today?",
-            "Describe one moment that stood out today."
+            "What are you grateful for?",
+            "What stressed you out today?",
+            "What do you hope for tomorrow?"
         ]
-        st.markdown(f"💬 Prompt: *{prompts[datetime.now().day % len(prompts)]}*")
-        mood = st.radio("How are you feeling today?", ["😊", "😐", "😢", "😠", "😴"], horizontal=True)
-        journal_text = st.text_area("Your Journal", height=200)
-        audio = st.file_uploader("Optional: Upload voice note (.wav)", type=["wav"])
+        st.caption(f"Prompt: {prompts[datetime.now().day % len(prompts)]}")
 
-        if st.button("Reflect & Analyze"):
-            if journal_text.strip() == "":
-                st.warning("Please write something.")
-            else:
+        mood = st.radio("Your mood:", ["🙂", "😐", "😢", "😡", "😴"], horizontal=True)
+        journal_text = st.text_area("Your entry", height=200)
+        audio = st.file_uploader("Optional voice note (.wav)", type=["wav"])  # placeholder
+
+        if st.button("Analyze"):
+            if journal_text.strip():
                 sentiment_model = load_sentiment_model()
                 summarizer = load_summarizer()
                 embedder = load_embedder()
@@ -72,13 +77,14 @@ if username and password:
                 sentiment = sentiment_model(journal_text)[0]
                 summary = summarizer(journal_text, max_length=50, min_length=10, do_sample=False)[0]['summary_text']
                 tags = [word.lower() for word in summary.split() if len(word) > 4]
-                current_embedding = embedder.encode(journal_text, convert_to_tensor=True)
+
+                embedding = embedder.encode(journal_text, convert_to_tensor=True)
                 reflection = None
                 for entry in entries[::-1]:
                     past_embedding = embedder.encode(entry["text"], convert_to_tensor=True)
-                    similarity = util.pytorch_cos_sim(current_embedding, past_embedding).item()
+                    similarity = util.pytorch_cos_sim(embedding, past_embedding).item()
                     if similarity > 0.7:
-                        reflection = f"You had a similar entry on {entry['date']}."
+                        reflection = f"This feels similar to your entry on {entry['date']}."
                         break
 
                 new_entry = {
@@ -87,53 +93,59 @@ if username and password:
                     "mood_emoji": mood,
                     "sentiment": sentiment['label'],
                     "summary": summary,
-                    "tags": list(set(tags)),
+                    "tags": list(set(tags))
                 }
+
                 entries.append(new_entry)
                 with open(filename, "w") as f:
                     json.dump(entries, f, indent=2)
 
-                st.success("✅ Entry saved!")
-                st.subheader("🧾 Summary")
+                st.success("Entry saved.")
+                st.subheader("Summary")
                 st.write(summary)
-                st.subheader("😊 Sentiment")
+                st.subheader("Sentiment")
                 st.write(sentiment['label'])
-                st.subheader("🏷️ Themes")
-                st.write(", ".join(new_entry["tags"]))
                 if reflection:
-                    st.subheader("🪞 Memory Mirror")
                     st.info(reflection)
+            else:
+                st.warning("Write something before analyzing.")
 
-    elif page == "📜 View Past Journals":
-        st.header(f"📜 {username.title()}'s Journal")
-        for entry in entries[::-1]:
-            with st.expander(f"{entry['date']} {entry.get('mood_emoji', '')}"):
-                st.write(entry["text"])
-                st.markdown(f"**Sentiment:** {entry['sentiment']}")
-                st.markdown(f"**Summary:** {entry['summary']}")
-                st.markdown(f"**Tags:** {', '.join(entry['tags'])}")
+    # View past journals
+    elif page == "Past Journals":
+        st.header("Your Past Entries")
+        if entries:
+            for entry in reversed(entries):
+                with st.expander(f"{entry['date']} {entry.get('mood_emoji','')}"):
+                    st.write(entry["text"])
+                    st.markdown(f"**Sentiment:** {entry['sentiment']}")
+                    st.markdown(f"**Summary:** {entry['summary']}")
+                    st.markdown(f"**Tags:** {', '.join(entry['tags'])}")
+        else:
+            st.info("No entries found.")
 
-    elif page == "🧠 Insights Summary":
-        st.header("🧠 Insights (Excludes today's entry)")
+    # Insights summary
+    elif page == "Insights":
+        st.header("Insights from Previous Entries")
         if len(entries) < 2:
-            st.info("Add more entries to view insights.")
+            st.info("Write more entries to see insights.")
         else:
             past_entries = entries[:-1]
             sentiments = [e["sentiment"] for e in past_entries]
             pos = sentiments.count("POSITIVE")
             neg = sentiments.count("NEGATIVE")
             neu = len(sentiments) - pos - neg
-            st.subheader("📊 Mood Distribution")
-            st.write(f"🟢 Positive: {pos} | 🔴 Negative: {neg} | ⚪ Neutral: {neu}")
+
+            st.write(f"Positive: {pos}, Negative: {neg}, Neutral: {neu}")
 
             recent = sentiments[-3:]
             if recent.count("NEGATIVE") >= 2:
-                st.warning("😟 You've had multiple negative entries recently.")
+                st.warning("You've had multiple negative entries recently.")
             elif recent.count("POSITIVE") >= 2 and recent.count("POSITIVE") > recent.count("NEGATIVE"):
-                st.success("😊 You're trending positively lately!")
+                st.success("You're trending positive lately.")
             elif recent.count("POSITIVE") == recent.count("NEGATIVE"):
-                st.info("😐 Mixed mood trend.")
+                st.info("Mixed mood trend.")
 
+            # Streak counter
             streak = 1
             for i in range(len(entries)-2, -1, -1):
                 date_i = datetime.strptime(entries[i]["date"], "%Y-%m-%d %H:%M").date()
@@ -142,48 +154,44 @@ if username and password:
                     streak += 1
                 else:
                     break
-            st.subheader(f"🔥 Current journaling streak: {streak} day(s)")
+            st.write(f"Current journaling streak: {streak} day(s)")
 
-    elif page == "📊 Mood Graph":
-        st.header("📈 Mood Over Time")
-        if len(entries) < 2:
-            st.info("Not enough entries for a graph.")
-        else:
+    # Mood graph
+    elif page == "Mood Graph":
+        st.header("Mood Over Time")
+        if len(entries) >= 2:
             df = pd.DataFrame({
                 "Date": [pd.to_datetime(e["date"]) for e in entries],
-                "Mood": [1 if e["sentiment"]=="POSITIVE" else -1 if e["sentiment"]=="NEGATIVE" else 0 for e in entries]
+                "Mood": [1 if e["sentiment"] == "POSITIVE" else -1 if e["sentiment"] == "NEGATIVE" else 0 for e in entries]
             }).sort_values("Date")
             df.set_index("Date", inplace=True)
             st.line_chart(df)
+        else:
+            st.info("Not enough entries for graph.")
 
-    elif page == "📄 Download PDF":
-        import io
-        from fpdf import FPDF
-
+    # Download PDF
+    elif page == "Download PDF":
         pdf = FPDF()
         pdf.set_auto_page_break(auto=True, margin=15)
         for e in entries:
             pdf.add_page()
             pdf.set_font("Arial", size=12)
-            pdf.multi_cell(0, 10, f"{e['date']}
+            pdf.multi_cell(0, 10, f"{e['date']}\n\nMood: {e.get('mood_emoji','')}\nSentiment: {e['sentiment']}\n\n{e['text']}\n\nSummary: {e['summary']}")
+        buffer = io.BytesIO()
+        pdf.output(buffer)
+        st.download_button("Download Journal as PDF", buffer.getvalue(), "my_journal.pdf")
 
-Mood: {e.get('mood_emoji','')}
-Sentiment: {e['sentiment']}
-
-{e['text']}
-
-Summary: {e['summary']}")
-        pdf_output = io.BytesIO()
-        pdf.output(pdf_output)
-        st.download_button("📥 Download All Entries as PDF", pdf_output.getvalue(), "my_journal.pdf")
-
-    elif page == "🧱 Positive Wall":
-        st.header("🌈 Your Positive Memory Wall")
+    # Positive entries only
+    elif page == "Positive Entries":
+        st.header("Positive Reflections")
+        found = False
         for e in reversed(entries):
             if e["sentiment"] == "POSITIVE":
-                st.success(f"🗓 {e['date']} {e.get('mood_emoji','')}  
-{e['summary']}")
+                st.success(f"{e['date']} - {e.get('mood_emoji','')}\n\n{e['summary']}")
+                found = True
+        if not found:
+            st.info("No positive entries yet.")
 
 else:
-    st.warning("🔐 Please log in with name & password to access your journal.")
-        
+    st.warning("Please enter your name and password to start.")
+                
