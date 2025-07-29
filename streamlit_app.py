@@ -90,7 +90,6 @@ if st.session_state.get("logged_in"):
         "📊 Mood Graph", "📄 Download PDF", "💌 Future Note"
     ])
 
-    # --- Journal Entry ---
     if page == "📝 New Entry":
         st.header(f"Dear {name}, what’s on your mind today?")
         st.markdown("💡 *Tip: If you like to write your diary on paper and still want to use this app, use Google Camera (or any scanner) to copy the text and paste it here.*")
@@ -98,7 +97,9 @@ if st.session_state.get("logged_in"):
 
         if st.button("Save & Analyze"):
             if journal.strip():
-                if sentiment_model:
+                if len(journal.split()) < 10:
+                    st.warning("✍️ Journal is too short for meaningful AI analysis. Try writing at least 10 words.")
+                elif sentiment_model:
                     try:
                         sentiment = sentiment_model(journal)[0]
                         new_entry = {
@@ -117,7 +118,6 @@ if st.session_state.get("logged_in"):
             else:
                 st.warning("Please write something first.")
 
-    # --- Past Journals ---
     elif page == "📜 Past Journals":
         st.header("📜 Your Journal Entries")
         if not entries:
@@ -128,7 +128,6 @@ if st.session_state.get("logged_in"):
                     st.write(e["text"])
                     st.markdown(f"**Sentiment:** {e['sentiment']}")
 
-    # --- Insights ---
     elif page == "🧠 Insights":
         st.header("🧠 Mood Overview")
         if len(entries) < 2:
@@ -149,7 +148,6 @@ if st.session_state.get("logged_in"):
                     break
             st.success(f"🔥 Current journaling streak: {streak} day(s)")
 
-    # --- Mood Graph ---
     elif page == "📊 Mood Graph":
         st.header("📊 Mood Over Time")
         if len(entries) < 2:
@@ -162,7 +160,6 @@ if st.session_state.get("logged_in"):
             df.set_index("Date", inplace=True)
             st.line_chart(df)
 
-    # --- PDF Download ---
     elif page == "📄 Download PDF":
         st.header("📄 Export Your Journal")
         if not entries:
@@ -177,7 +174,6 @@ if st.session_state.get("logged_in"):
             pdf_output = pdf.output(dest='S').encode('latin1')
             st.download_button("Download PDF", data=pdf_output, file_name="my_journal.pdf", mime="application/pdf")
 
-    # --- Future Note ---
     elif page == "💌 Future Note":
         st.header("💌 Message to Future You")
         future_file = f"{get_email_hash(email)}_future.json"
