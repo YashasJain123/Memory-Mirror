@@ -6,7 +6,8 @@ import pandas as pd
 import io
 from fpdf import FPDF
 from hashlib import sha256
-from transformers import pipeline
+import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, TextClassificationPipeline
 
 # --- Setup ---
 st.set_page_config("Memory Mirror", layout="wide")
@@ -33,13 +34,16 @@ def save_entries(email, entries):
 
 def load_sentiment_model():
     try:
-        model = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english", device=-1)
-        return model
+        model_name = "distilbert-base-uncased-finetuned-sst-2-english"
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForSequenceClassification.from_pretrained(model_name, torch_dtype=torch.float32)
+        pipe = TextClassificationPipeline(model=model, tokenizer=tokenizer, return_all_scores=False)
+        return pipe
     except Exception as e:
         st.error(f"❌ Failed to load sentiment model: {e}")
         return None
 
-# Load AI model
+# Load sentiment model
 sentiment_model = load_sentiment_model()
 if sentiment_model:
     try:
@@ -48,7 +52,7 @@ if sentiment_model:
     except Exception as e:
         st.sidebar.error(f"Model test failed: {e}")
 else:
-    st.sidebar.error("⚠️ AI model unavailable.")
+    st.sidebar.error("⚠️ AI model not available.")
 
 # --- Auth ---
 if "logged_in" not in st.session_state:
@@ -108,7 +112,7 @@ if st.session_state.get("logged_in"):
         if st.button("Save & Analyze"):
             if journal.strip():
                 if len(journal.split()) < 10:
-                    st.warning("✍️ Journal is too short for AI to understand. Try writing at least 10 words.")
+                    st.warning("✍️ Journal is too short. Try writing at least 10 words.")
                 elif sentiment_model:
                     try:
                         sentiment = sentiment_model(journal.strip())[0]
@@ -126,7 +130,7 @@ if st.session_state.get("logged_in"):
                 else:
                     st.warning("AI model not available.")
             else:
-                st.warning("Write something first!")
+                st.warning("Please write something.")
 
     # --- Past Journals ---
     elif page == "📜 Past Journals":
@@ -146,7 +150,6 @@ if st.session_state.get("logged_in"):
             counts = pd.Series(sentiments).value_counts()
             st.bar_chart(counts)
 
-            # Streak Calculation
             streak = 1
             for i in range(len(entries) - 2, -1, -1):
                 d1 = datetime.strptime(entries[i]["date"], "%Y-%m-%d %H:%M").date()
