@@ -7,7 +7,19 @@ import io
 from fpdf import FPDF
 from hashlib import sha256
 import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, TextClassificationPipeline
+@st.cache_resource
+def load_sentiment_model():
+    try:
+        from transformers import AutoTokenizer, AutoModelForSequenceClassification, TextClassificationPipeline
+
+        model_name = "distilbert-base-uncased-finetuned-sst-2-english"
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForSequenceClassification.from_pretrained(model_name)
+        pipe = TextClassificationPipeline(model=model, tokenizer=tokenizer, return_all_scores=False)
+        return pipe
+    except Exception as e:
+        st.error(f"❌ Failed to load sentiment model: {e}")
+        return None
 
 # --- Setup ---
 st.set_page_config("Memory Mirror", layout="wide")
@@ -100,7 +112,7 @@ if st.session_state.get("logged_in"):
     name = st.session_state.name
     page = st.sidebar.radio("Navigate", [
         "📝 New Entry", "📜 Past Journals", "🧠 Insights",
-        "📊 Mood Graph", "📄 Download PDF", "💌 Future Note", "💬 Deep Journal Insight (AI)"
+        "📊 Mood Graph", "💌 Future Note", "💬 Deep Journal Insight (AI)"
     ])
 
     # --- Journal Entry ---
