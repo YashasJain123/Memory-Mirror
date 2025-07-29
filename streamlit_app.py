@@ -210,8 +210,8 @@ if st.session_state.get("logged_in"):
                 st.success("✅ Your note is saved and will unlock on the selected day.")
                 #------Deep Journal Insight-----
       elif page == "💬 Deep Journal Insight (AI)":
-    st.header("💬 Deep Journal Insight")
-    entries = load_entries(email)
+       st.header("💬 Deep Journal Insight")
+       entries = load_entries(email)
 
     if not entries:
         st.warning("You need at least one journal entry.")
