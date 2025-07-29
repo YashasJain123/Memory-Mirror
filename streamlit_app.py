@@ -1,153 +1,189 @@
+
 import streamlit as st
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import torch
 from transformers import pipeline
 from sentence_transformers import SentenceTransformer, util
 from collections import Counter
 import pandas as pd
 
-# Title and Tip
-st.title("🧠 Memory Mirror - Smart AI Journal")
-st.info("💡 Tip: If you enjoy writing your diary on paper but still want to use this app, you can use the Google Camera app (or Google Lens) to copy your handwritten text and paste it here.")
+st.set_page_config(page_title="Memory Mirror", layout="wide")
+st.title("🧠 Memory Mirror - Secure AI Journal")
 
-# === MODEL LOADERS (cached for performance) ===
-@st.cache_resource
-def load_sentiment_model():
-    device = 0 if torch.cuda.is_available() else -1
-    return pipeline(
-        "sentiment-analysis",
-        model="distilbert-base-uncased-finetuned-sst-2-english",
-        tokenizer="distilbert-base-uncased-finetuned-sst-2-english",
-        device=device
-    )
+# Sidebar login
+st.sidebar.header("🔐 Login")
+username = st.sidebar.text_input("Your Name")
+password = st.sidebar.text_input("Your Password", type="password")
 
-@st.cache_resource
-def load_summarizer():
-    device = 0 if torch.cuda.is_available() else -1
-    return pipeline("summarization", model="sshleifer/distilbart-cnn-12-6", device=device)
+if username and password:
+    user_id = username.strip().lower().replace(" ", "_")
+    filename = f"{user_id}_{password}.json"
 
-@st.cache_resource
-def load_embedder():
-    return SentenceTransformer("paraphrase-MiniLM-L6-v2")
+    @st.cache_resource(show_spinner=False)
+    def load_sentiment_model():
+        return pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
 
-# === LOAD/CREATE JSON FILE ===
-FILE = "entries.json"
-if os.path.exists(FILE):
-    with open(FILE, "r") as f:
-        entries = json.load(f)
-else:
-    entries = []
+    @st.cache_resource(show_spinner=False)
+    def load_summarizer():
+        return pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
 
-# === TEXT INPUT ===
-journal_text = st.text_area("Write your journal entry for today:", height=200)
+    @st.cache_resource(show_spinner=False)
+    def load_embedder():
+        return SentenceTransformer("paraphrase-MiniLM-L6-v2")
 
-# === PROCESSING ===
-if st.button("Reflect"):
-    if journal_text.strip() == "":
-        st.warning("Please write something.")
+    if os.path.exists(filename):
+        with open(filename, "r") as f:
+            entries = json.load(f)
     else:
-        try:
-            # Truncate very long text
-            if len(journal_text.split()) > 500:
-                journal_text = " ".join(journal_text.split()[:500])
+        entries = []
 
-            # Load AI tools
-            sentiment_model = load_sentiment_model()
-            summarizer = load_summarizer()
-            embedder = load_embedder()
+    page = st.sidebar.radio("📂 Select View", [
+        "📝 New Entry",
+        "📜 View Past Journals",
+        "🧠 Insights Summary",
+        "📊 Mood Graph",
+        "📄 Download PDF",
+        "🧱 Positive Wall"
+    ])
 
-            # AI processing
-            sentiment = sentiment_model(journal_text)[0]
-            summary = summarizer(journal_text, max_length=50, min_length=10, do_sample=False)[0]['summary_text']
-            tags = [word.lower() for word in summary.split() if len(word) > 4]
+    if page == "📝 New Entry":
+        st.header(f"Hi {username.title()}, write your journal entry:")
+        prompts = [
+            "What made you smile today?",
+            "Is there something you’re grateful for?",
+            "What drained your energy today?",
+            "Describe one moment that stood out today."
+        ]
+        st.markdown(f"💬 Prompt: *{prompts[datetime.now().day % len(prompts)]}*")
+        mood = st.radio("How are you feeling today?", ["😊", "😐", "😢", "😠", "😴"], horizontal=True)
+        journal_text = st.text_area("Your Journal", height=200)
+        audio = st.file_uploader("Optional: Upload voice note (.wav)", type=["wav"])
 
-            # Memory similarity check
-            current_embedding = embedder.encode(journal_text, convert_to_tensor=True)
-            reflection = None
-            for entry in entries[::-1]:
-                past_embedding = embedder.encode(entry["text"], convert_to_tensor=True)
-                similarity = util.pytorch_cos_sim(current_embedding, past_embedding).item()
-                if similarity > 0.7:
-                    reflection = f"You had a similar entry on {entry['date']}."
+        if st.button("Reflect & Analyze"):
+            if journal_text.strip() == "":
+                st.warning("Please write something.")
+            else:
+                sentiment_model = load_sentiment_model()
+                summarizer = load_summarizer()
+                embedder = load_embedder()
+
+                sentiment = sentiment_model(journal_text)[0]
+                summary = summarizer(journal_text, max_length=50, min_length=10, do_sample=False)[0]['summary_text']
+                tags = [word.lower() for word in summary.split() if len(word) > 4]
+                current_embedding = embedder.encode(journal_text, convert_to_tensor=True)
+                reflection = None
+                for entry in entries[::-1]:
+                    past_embedding = embedder.encode(entry["text"], convert_to_tensor=True)
+                    similarity = util.pytorch_cos_sim(current_embedding, past_embedding).item()
+                    if similarity > 0.7:
+                        reflection = f"You had a similar entry on {entry['date']}."
+                        break
+
+                new_entry = {
+                    "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                    "text": journal_text,
+                    "mood_emoji": mood,
+                    "sentiment": sentiment['label'],
+                    "summary": summary,
+                    "tags": list(set(tags)),
+                }
+                entries.append(new_entry)
+                with open(filename, "w") as f:
+                    json.dump(entries, f, indent=2)
+
+                st.success("✅ Entry saved!")
+                st.subheader("🧾 Summary")
+                st.write(summary)
+                st.subheader("😊 Sentiment")
+                st.write(sentiment['label'])
+                st.subheader("🏷️ Themes")
+                st.write(", ".join(new_entry["tags"]))
+                if reflection:
+                    st.subheader("🪞 Memory Mirror")
+                    st.info(reflection)
+
+    elif page == "📜 View Past Journals":
+        st.header(f"📜 {username.title()}'s Journal")
+        for entry in entries[::-1]:
+            with st.expander(f"{entry['date']} {entry.get('mood_emoji', '')}"):
+                st.write(entry["text"])
+                st.markdown(f"**Sentiment:** {entry['sentiment']}")
+                st.markdown(f"**Summary:** {entry['summary']}")
+                st.markdown(f"**Tags:** {', '.join(entry['tags'])}")
+
+    elif page == "🧠 Insights Summary":
+        st.header("🧠 Insights (Excludes today's entry)")
+        if len(entries) < 2:
+            st.info("Add more entries to view insights.")
+        else:
+            past_entries = entries[:-1]
+            sentiments = [e["sentiment"] for e in past_entries]
+            pos = sentiments.count("POSITIVE")
+            neg = sentiments.count("NEGATIVE")
+            neu = len(sentiments) - pos - neg
+            st.subheader("📊 Mood Distribution")
+            st.write(f"🟢 Positive: {pos} | 🔴 Negative: {neg} | ⚪ Neutral: {neu}")
+
+            recent = sentiments[-3:]
+            if recent.count("NEGATIVE") >= 2:
+                st.warning("😟 You've had multiple negative entries recently.")
+            elif recent.count("POSITIVE") >= 2 and recent.count("POSITIVE") > recent.count("NEGATIVE"):
+                st.success("😊 You're trending positively lately!")
+            elif recent.count("POSITIVE") == recent.count("NEGATIVE"):
+                st.info("😐 Mixed mood trend.")
+
+            streak = 1
+            for i in range(len(entries)-2, -1, -1):
+                date_i = datetime.strptime(entries[i]["date"], "%Y-%m-%d %H:%M").date()
+                date_j = datetime.strptime(entries[i+1]["date"], "%Y-%m-%d %H:%M").date()
+                if (date_j - date_i).days == 1:
+                    streak += 1
+                else:
                     break
+            st.subheader(f"🔥 Current journaling streak: {streak} day(s)")
 
-            # Save new entry
-            new_entry = {
-                "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                "text": journal_text,
-                "sentiment": sentiment['label'],
-                "summary": summary,
-                "tags": list(set(tags)),
-            }
-            entries.append(new_entry)
-            with open(FILE, "w") as f:
-                json.dump(entries, f, indent=2)
+    elif page == "📊 Mood Graph":
+        st.header("📈 Mood Over Time")
+        if len(entries) < 2:
+            st.info("Not enough entries for a graph.")
+        else:
+            df = pd.DataFrame({
+                "Date": [pd.to_datetime(e["date"]) for e in entries],
+                "Mood": [1 if e["sentiment"]=="POSITIVE" else -1 if e["sentiment"]=="NEGATIVE" else 0 for e in entries]
+            }).sort_values("Date")
+            df.set_index("Date", inplace=True)
+            st.line_chart(df)
 
-            # Show results
-            st.success("✅ Entry saved and analyzed!")
-            st.subheader("🧾 Summary")
-            st.write(summary)
+    elif page == "📄 Download PDF":
+        import io
+        from fpdf import FPDF
 
-            st.subheader("😊 Mood")
-            st.write(sentiment['label'])
+        pdf = FPDF()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        for e in entries:
+            pdf.add_page()
+            pdf.set_font("Arial", size=12)
+            pdf.multi_cell(0, 10, f"{e['date']}
 
-            st.subheader("🏷️ Themes")
-            st.write(", ".join(new_entry["tags"]))
+Mood: {e.get('mood_emoji','')}
+Sentiment: {e['sentiment']}
 
-            if reflection:
-                st.subheader("🪞 Memory Mirror")
-                st.info(reflection)
+{e['text']}
 
-        except Exception as e:
-            st.error(f"⚠️ Error during analysis: {e}")
+Summary: {e['summary']}")
+        pdf_output = io.BytesIO()
+        pdf.output(pdf_output)
+        st.download_button("📥 Download All Entries as PDF", pdf_output.getvalue(), "my_journal.pdf")
 
-# === PAST ENTRIES ===
-st.markdown("---")
-st.header("📜 Past Entries")
-for entry in entries[::-1]:
-    with st.expander(entry["date"]):
-        st.write(entry["text"])
-        st.markdown(f"**Sentiment:** {entry['sentiment']}")
-        st.markdown(f"**Summary:** {entry['summary']}")
-        st.markdown(f"**Tags:** {', '.join(entry['tags'])}")
+    elif page == "🧱 Positive Wall":
+        st.header("🌈 Your Positive Memory Wall")
+        for e in reversed(entries):
+            if e["sentiment"] == "POSITIVE":
+                st.success(f"🗓 {e['date']} {e.get('mood_emoji','')}  
+{e['summary']}")
 
-# === INSIGHTS FROM PAST ENTRIES ===
-if entries:
-    st.markdown("---")
-    st.header("🧠 Insight Summary From Your Journal")
-
-    # Mood trend
-    sentiments = [e['sentiment'] for e in entries]
-    pos = sentiments.count('POSITIVE')
-    neg = sentiments.count('NEGATIVE')
-    neu = len(sentiments) - pos - neg
-
-    st.subheader("📊 Mood Overview")
-    st.write(f"🟢 Positive: {pos} | 🔴 Negative: {neg} | ⚪ Neutral: {neu}")
-
-    # Frequent tags
-    tag_counter = Counter(tag for e in entries for tag in e['tags'])
-    top_tags = tag_counter.most_common(5)
-    if top_tags:
-        st.subheader("🏷️ Most Frequent Themes")
-        for tag, count in top_tags:
-            st.write(f"- **{tag}** appeared in {count} entries")
-
-    # Mood trend insight
-    if len(sentiments) >= 3:
-        recent = sentiments[-3:]
-        if recent.count('NEGATIVE') >= 2:
-            st.warning("😟 You've had multiple negative entries recently. Consider writing about what’s been bothering you.")
-        elif recent.count('POSITIVE') >= 2:
-            st.success("😊 You're trending positive lately — keep reflecting on what brings you joy!")
-
-    # Mood line graph
-    mood_scores = [1 if s == 'POSITIVE' else -1 if s == 'NEGATIVE' else 0 for s in sentiments]
-    dates = [e['date'] for e in entries]
-    df = pd.DataFrame({'Date': pd.to_datetime(dates), 'Mood': mood_scores})
-    df.set_index("Date", inplace=True)
-    st.subheader("📈 Mood Over Time")
-    st.line_chart(df)
-                                                               
+else:
+    st.warning("🔐 Please log in with name & password to access your journal.")
+        
