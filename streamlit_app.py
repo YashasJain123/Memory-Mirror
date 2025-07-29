@@ -217,22 +217,7 @@ else:
             }).sort_values("Date")
             df.set_index("Date", inplace=True)
             st.line_chart(df)
-
-    # --- PDF Export ---
-    elif page == "📄 Download PDF":
-        st.header("📄 Export Your Journal")
-        if not entries:
-            st.info("No entries yet.")
-        else:
-            pdf = FPDF()
-            pdf.set_auto_page_break(auto=True, margin=15)
-            pdf.set_font("Arial", size=12)
-            for e in entries:
-                pdf.add_page()
-                pdf.multi_cell(0, 10, f"{e['date']}\n\nSentiment: {e['sentiment']}\n\n{e['text']}")
-            pdf_output = pdf.output(dest='S').encode('latin1')
-            st.download_button("Download PDF", data=pdf_output, file_name="my_journal.pdf", mime="application/pdf")
-
+            
     # --- Note to Future ---
     elif page == "💌 Future Note":
         st.header("💌 Message to Future You")
