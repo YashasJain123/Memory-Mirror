@@ -8,7 +8,7 @@ from fpdf import FPDF
 from hashlib import sha256
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, TextClassificationPipeline
-
+import random
 # --- Setup ---
 st.set_page_config("Memory Mirror", layout="wide")
 st.title("🧠 Memory Mirror - AI-Powered Journal")
@@ -142,6 +142,50 @@ if st.session_state.get("logged_in"):
 
     # --- Insights ---
     elif page == "🧠 Insights":
+st.subheader("🧠 AI Summary of Your Mood Trends")
+
+if entries:
+    sentiments = [e["sentiment"] for e in entries]
+    total = len(sentiments)
+    pos = sentiments.count("POSITIVE")
+    neg = sentiments.count("NEGATIVE")
+    neu = sentiments.count("NEUTRAL")
+
+    insight_options = []
+
+    if pos > neg and pos > neu:
+        insight_options = [
+            "You've been radiating mostly positive vibes — looks like things have been uplifting overall.",
+            "Your recent entries suggest you're in a good headspace. Great to see that progress!",
+            "There's a clear pattern of optimism. Keep doing whatever's working for you!",
+            "You’ve captured a lot of meaningful highs recently. Keep journaling the good stuff!"
+        ]
+    elif neg > pos and neg > neu:
+        insight_options = [
+            "You've opened up about tough emotions lately. That's strength, not weakness.",
+            "It seems you've had a rough stretch — remember, expressing it is part of healing.",
+            "These reflections show you're moving through something hard. Keep writing through it.",
+            "There’s been some emotional heaviness in your entries. It’s okay — you’re showing up for yourself."
+        ]
+    elif neu > pos and neu > neg:
+        insight_options = [
+            "Your emotional tone has been calm and steady. That says a lot about your self-awareness.",
+            "You’ve been navigating things with balance — a reflective and thoughtful mood overall.",
+            "A neutral rhythm shows you’re grounded. Continue checking in with yourself like this.",
+            "These entries reveal a thoughtful equilibrium. Mindful journaling in action."
+        ]
+    else:
+        insight_options = [
+            "Your emotional landscape is varied — totally normal. This journal is capturing your real self.",
+            "Some days are bright, others aren’t — and your entries reflect that beautifully.",
+            "You're documenting both ups and downs — a powerful act of self-reflection.",
+            "Mixed moods across entries show you're being real and honest with yourself. That's valuable."
+        ]
+
+    ai_summary = random.choice(insight_options)
+    st.markdown(f"**AI Insight:** {ai_summary}")
+else:
+    st.info("Add a few more entries for an AI-generated summary.")
         st.header("🧠 Mood Overview")
         if len(entries) < 2:
             st.info("Write more entries to view insights.")
