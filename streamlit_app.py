@@ -7,12 +7,7 @@ import io
 from fpdf import FPDF
 from hashlib import sha256
 import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, TextClassificationPipeline, pipeline
-@st.cache_resource
-def load_sentiment_model():
-    return pipeline("sentiment-analysis")
-
-sentiment_model = load_sentiment_model()
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, TextClassificationPipeline
 
 # --- Setup ---
 st.set_page_config("Memory Mirror", layout="wide")
@@ -177,22 +172,7 @@ if st.session_state.get("logged_in"):
             }).sort_values("Date")
             df.set_index("Date", inplace=True)
             st.line_chart(df)
-
-    # --- PDF Export ---
-    elif page == "📄 Download PDF":
-        st.header("📄 Export Your Journal")
-        if not entries:
-            st.info("No entries yet.")
-        else:
-            pdf = FPDF()
-            pdf.set_auto_page_break(auto=True, margin=15)
-            pdf.set_font("Arial", size=12)
-            for e in entries:
-                pdf.add_page()
-                pdf.multi_cell(0, 10, f"{e['date']}\n\nSentiment: {e['sentiment']}\n\n{e['text']}")
-            pdf_output = pdf.output(dest='S').encode('latin1')
-            st.download_button("Download PDF", data=pdf_output, file_name="my_journal.pdf", mime="application/pdf")
-
+            
     # --- Note to Future ---
     elif page == "💌 Future Note":
         st.header("💌 Message to Future You")
@@ -228,10 +208,10 @@ if st.session_state.get("logged_in"):
                 with open(future_file, "w") as f:
                     json.dump(note, f)
                 st.success("✅ Your note is saved and will unlock on the selected day.")
-                # Deep Analysis
+                #------Deep Journal Insight-----
         elif page == "💬 Deep Journal Insight (AI)":
     st.header("💬 Deep Journal Insight")
-    entries = user["entries"]
+    entries = load_entries(email)
 
     if not entries:
         st.warning("You need at least one journal entry.")
@@ -240,41 +220,31 @@ if st.session_state.get("logged_in"):
     # Combine all journal texts
     all_text = " ".join([e["text"] for e in entries if e["text"]])
 
-    # Load model
-    from transformers import pipeline
-    import torch
+    st.info("This section uses real AI to analyze your full journaling history using a pre-trained sentiment model.")
 
-    @st.cache_resource
-    def load_sentiment_model():
-        return pipeline("sentiment-analysis")
-
-    sentiment_model = load_sentiment_model()
-
-    # Chunk text for safe inference
     max_chunk_size = 512
     chunks = [all_text[i:i+max_chunk_size] for i in range(0, len(all_text), max_chunk_size)]
 
-    with st.spinner("Running deep sentiment analysis..."):
+    with st.spinner("Running AI sentiment analysis..."):
         try:
             results = [sentiment_model(chunk)[0] for chunk in chunks]
-
-            # Tally results
             pos = sum(1 for r in results if r["label"] == "POSITIVE")
             neg = sum(1 for r in results if r["label"] == "NEGATIVE")
+            neu = len(results) - pos - neg
 
-            # Display counts
-            st.subheader("🔍 AI Sentiment Summary")
-            st.markdown(f"✅ **Positive Passages**: {pos}")
-            st.markdown(f"❌ **Negative Passages**: {neg}")
+            st.subheader("📊 AI Sentiment Breakdown")
+            st.markdown(f"✅ Positive Chunks: **{pos}**")
+            st.markdown(f"❌ Negative Chunks: **{neg}**")
+            st.markdown(f"➖ Neutral/Uncertain: **{neu}**")
 
-            # Insight based on trend
-            st.subheader("🧠 Overall Mood Insight")
+            # AI Summary
+            st.subheader("🧠 AI Reflection")
             if pos > neg:
-                st.success("The overall tone of your writing has been optimistic and positive. Keep reflecting — you're building emotional strength.")
+                st.success("Your journaling shows a generally positive emotional tone. Keep it up — consistency is key to emotional growth.")
             elif neg > pos:
-                st.warning("Your entries reflect ongoing struggles or stress. Journaling is a good step. Consider reaching out to someone you trust too.")
+                st.warning("There are signs of emotional struggle. Journaling is a healthy outlet. You might consider talking to someone as well.")
             else:
-                st.info("Your emotions appear balanced or neutral. This suggests thoughtful observation of your inner world.")
+                st.info("Your journaling shows a balance of emotions — that's a good sign of thoughtful reflection.")
 
         except Exception as e:
-            st.error("AI analysis failed: " + str(e))
+            st.error(f"AI analysis failed: {e}")
