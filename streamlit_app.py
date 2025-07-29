@@ -140,71 +140,66 @@ if st.session_state.get("logged_in"):
                 st.write(e["text"])
                 st.markdown(f"**Sentiment:** {e['sentiment']}")
 
-    # --- Insights ---
     elif page == "🧠 Insights":
+    st.header("🧠 Mood Overview")
+
+    if len(entries) < 2:
+        st.info("Write more entries to view insights.")
+    else:
+        sentiments = [e["sentiment"] for e in entries]
+        counts = pd.Series(sentiments).value_counts()
+        st.bar_chart(counts)
+
+        # --- Streak Calculation ---
+        streak = 1
+        for i in range(len(entries) - 2, -1, -1):
+            d1 = datetime.strptime(entries[i]["date"], "%Y-%m-%d %H:%M").date()
+            d2 = datetime.strptime(entries[i+1]["date"], "%Y-%m-%d %H:%M").date()
+            if (d2 - d1).days == 1:
+                streak += 1
+            else:
+                break
+        st.success(f"🔥 Current journaling streak: {streak} day(s)")
+
+        # --- AI Summary of Insights ---
         import random
         st.subheader("🧠 AI Summary of Your Mood Trends")
-        
-if entries:
-    sentiments = [e["sentiment"] for e in entries]
-    total = len(sentiments)
-    pos = sentiments.count("POSITIVE")
-    neg = sentiments.count("NEGATIVE")
-    neu = sentiments.count("NEUTRAL")
 
-    insight_options = []
+        pos = sentiments.count("POSITIVE")
+        neg = sentiments.count("NEGATIVE")
+        neu = sentiments.count("NEUTRAL")
 
-    if pos > neg and pos > neu:
-        insight_options = [
-            "You've been radiating mostly positive vibes — looks like things have been uplifting overall.",
-            "Your recent entries suggest you're in a good headspace. Great to see that progress!",
-            "There's a clear pattern of optimism. Keep doing whatever's working for you!",
-            "You’ve captured a lot of meaningful highs recently. Keep journaling the good stuff!"
-        ]
-    elif neg > pos and neg > neu:
-        insight_options = [
-            "You've opened up about tough emotions lately. That's strength, not weakness.",
-            "It seems you've had a rough stretch — remember, expressing it is part of healing.",
-            "These reflections show you're moving through something hard. Keep writing through it.",
-            "There’s been some emotional heaviness in your entries. It’s okay — you’re showing up for yourself."
-        ]
-    elif neu > pos and neu > neg:
-        insight_options = [
-            "Your emotional tone has been calm and steady. That says a lot about your self-awareness.",
-            "You’ve been navigating things with balance — a reflective and thoughtful mood overall.",
-            "A neutral rhythm shows you’re grounded. Continue checking in with yourself like this.",
-            "These entries reveal a thoughtful equilibrium. Mindful journaling in action."
-        ]
-    else:
-        insight_options = [
-            "Your emotional landscape is varied — totally normal. This journal is capturing your real self.",
-            "Some days are bright, others aren’t — and your entries reflect that beautifully.",
-            "You're documenting both ups and downs — a powerful act of self-reflection.",
-            "Mixed moods across entries show you're being real and honest with yourself. That's valuable."
-        ]
-
-    ai_summary = random.choice(insight_options)
-    st.markdown(f"**AI Insight:** {ai_summary}")
-else:
-    st.info("Add a few more entries for an AI-generated summary.")
-        st.header("🧠 Mood Overview")
-        if len(entries) < 2:
-            st.info("Write more entries to view insights.")
+        if pos > neg and pos > neu:
+            insight_options = [
+                "You've been radiating mostly positive vibes — looks like things have been uplifting overall.",
+                "Your recent entries suggest you're in a good headspace. Great to see that progress!",
+                "There's a clear pattern of optimism. Keep doing whatever's working for you!",
+                "You’ve captured a lot of meaningful highs recently. Keep journaling the good stuff!"
+            ]
+        elif neg > pos and neg > neu:
+            insight_options = [
+                "You've opened up about tough emotions lately. That's strength, not weakness.",
+                "It seems you've had a rough stretch — remember, expressing it is part of healing.",
+                "These reflections show you're moving through something hard. Keep writing through it.",
+                "There’s been some emotional heaviness in your entries. It’s okay — you’re showing up for yourself."
+            ]
+        elif neu > pos and neu > neg:
+            insight_options = [
+                "Your emotional tone has been calm and steady. That says a lot about your self-awareness.",
+                "You’ve been navigating things with balance — a reflective and thoughtful mood overall.",
+                "A neutral rhythm shows you’re grounded. Continue checking in with yourself like this.",
+                "These entries reveal a thoughtful equilibrium. Mindful journaling in action."
+            ]
         else:
-            sentiments = [e["sentiment"] for e in entries]
-            counts = pd.Series(sentiments).value_counts()
-            st.bar_chart(counts)
+            insight_options = [
+                "Your emotional landscape is varied — totally normal. This journal is capturing your real self.",
+                "Some days are bright, others aren’t — and your entries reflect that beautifully.",
+                "You're documenting both ups and downs — a powerful act of self-reflection.",
+                "Mixed moods across entries show you're being real and honest with yourself. That's valuable."
+            ]
 
-            streak = 1
-            for i in range(len(entries) - 2, -1, -1):
-                d1 = datetime.strptime(entries[i]["date"], "%Y-%m-%d %H:%M").date()
-                d2 = datetime.strptime(entries[i+1]["date"], "%Y-%m-%d %H:%M").date()
-                if (d2 - d1).days == 1:
-                    streak += 1
-                else:
-                    break
-            st.success(f"🔥 Current journaling streak: {streak} day(s)")
-
+        ai_summary = random.choice(insight_options)
+        st.markdown(f"**AI Insight:** {ai_summary}")
     # --- Mood Graph ---
     elif page == "📊 Mood Graph":
         st.header("📊 Mood Over Time")
