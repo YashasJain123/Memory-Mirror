@@ -1,6 +1,5 @@
-streamlit
-transformers
-torch
-sentence-transformers
-pandas
-fpdf
+streamlit==1.35.0
+transformers==4.40.0
+torch>=2.1.0
+fpdf==1.7.2
+pandas==2.2.2
