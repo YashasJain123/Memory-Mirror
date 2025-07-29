@@ -20,6 +20,7 @@ def load_sentiment_model():
     except Exception as e:
         st.error(f"❌ Failed to load sentiment model: {e}")
         return None
+        sentiment_model = load_sentiment_model()
 
 # --- Setup ---
 st.set_page_config("Memory Mirror", layout="wide")
