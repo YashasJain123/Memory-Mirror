@@ -7,11 +7,10 @@ import io
 from fpdf import FPDF
 from hashlib import sha256
 import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, TextClassificationPipeline
 @st.cache_resource
 def load_sentiment_model():
     try:
-        from transformers import AutoTokenizer, AutoModelForSequenceClassification, TextClassificationPipeline
-
         model_name = "distilbert-base-uncased-finetuned-sst-2-english"
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         model = AutoModelForSequenceClassification.from_pretrained(model_name)
