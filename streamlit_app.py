@@ -5,10 +5,10 @@ from datetime import datetime
 from transformers import pipeline
 from sentence_transformers import SentenceTransformer, util
 
-# Load AI models
+# Use lightweight models for better performance
 sentiment_model = pipeline("sentiment-analysis")
-summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
+summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
+embedder = SentenceTransformer("paraphrase-MiniLM-L6-v2")
 
 # File to store journal entries
 FILE = "entries.json"
@@ -20,24 +20,23 @@ if os.path.exists(FILE):
 else:
     entries = []
 
-# App title and helpful tip
+# App UI
 st.title("🧠 Memory Mirror - Smart AI Journal")
+
 st.info("💡 Tip: If you enjoy writing your diary on paper but still want to use this app, you can use the Google Camera app (or Google Lens) to copy your handwritten text and paste it here.")
 
-# Journal input field
 journal_text = st.text_area("Write your journal entry for today:", height=200)
 
-# Button to trigger analysis
 if st.button("Reflect"):
     if journal_text.strip() == "":
         st.warning("Please write something first.")
     else:
-        # Analyze with AI
+        # AI Analysis
         sentiment = sentiment_model(journal_text)[0]
         summary = summarizer(journal_text, max_length=50, min_length=10, do_sample=False)[0]['summary_text']
         tags = [word.lower() for word in summary.split() if len(word) > 4]
 
-        # Memory comparison using semantic similarity
+        # Semantic memory check
         current_embedding = embedder.encode(journal_text, convert_to_tensor=True)
         reflection = None
         for entry in entries[::-1]:
@@ -47,7 +46,7 @@ if st.button("Reflect"):
                 reflection = f"You had a similar entry on {entry['date']}."
                 break
 
-        # Save new entry
+        # Save entry
         new_entry = {
             "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
             "text": journal_text,
@@ -60,22 +59,22 @@ if st.button("Reflect"):
         with open(FILE, "w") as f:
             json.dump(entries, f, indent=2)
 
-        # Show results
+        # Show insights
         st.success("✅ Journal entry saved and analyzed!")
         st.subheader("🧾 Summary")
         st.write(summary)
 
-        st.subheader("😊 Mood Detected")
+        st.subheader("😊 Mood")
         st.write(sentiment['label'])
 
-        st.subheader("🏷️ Key Themes")
+        st.subheader("🏷️ Themes")
         st.write(", ".join(new_entry["tags"]))
 
         if reflection:
             st.subheader("🪞 Memory Mirror")
             st.info(reflection)
 
-# Past entries section
+# Show all past entries
 st.markdown("---")
 st.header("📜 Past Entries")
 
@@ -85,4 +84,3 @@ for entry in entries[::-1]:
         st.markdown(f"**Sentiment:** {entry['sentiment']}")
         st.markdown(f"**Summary:** {entry['summary']}")
         st.markdown(f"**Tags:** {', '.join(entry['tags'])}")
-        
