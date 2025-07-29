@@ -1,91 +1,88 @@
 import streamlit as st
-from transformers import pipeline
-import datetime
 import json
 import os
+from datetime import datetime
+from transformers import pipeline
+from sentence_transformers import SentenceTransformer, util
 
-st.set_page_config(page_title="Memory Mirror", layout="centered")
-
-# Load sentiment analysis pipeline
+# Load AI models
 sentiment_model = pipeline("sentiment-analysis")
+summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
 # File to store journal entries
 FILE = "entries.json"
 
-# Load previous entries
-def load_entries():
-    if os.path.exists(FILE):
-        with open(FILE, 'r') as f:
-            return json.load(f)
-    return {}
+# Load existing entries or create new
+if os.path.exists(FILE):
+    with open(FILE, "r") as f:
+        entries = json.load(f)
+else:
+    entries = []
 
-# Save a new entry
-def save_entry(date, text, mood, keywords):
-    data = load_entries()
-    data[date] = {
-        'text': text,
-        'mood': mood,
-        'keywords': keywords
-    }
-    with open(FILE, 'w') as f:
-        json.dump(data, f, indent=4)
+# App title and helpful tip
+st.title("🧠 Memory Mirror - Smart AI Journal")
+st.info("💡 Tip: If you enjoy writing your diary on paper but still want to use this app, you can use the Google Camera app (or Google Lens) to copy your handwritten text and paste it here.")
 
-# Analyze mood
-def analyze_sentiment(text):
-    result = sentiment_model(text)[0]
-    return f"{result['label']} ({round(result['score'], 2)})"
+# Journal input field
+journal_text = st.text_area("Write your journal entry for today:", height=200)
 
-# Extract simple keywords
-def extract_keywords(text):
-    words = text.lower().split()
-    stopwords = set(['i', 'am', 'the', 'and', 'a', 'is', 'in', 'to', 'of', 'my', 'it', 'for', 'on', 'with'])
-    keywords = [w.strip(".,?!") for w in words if w not in stopwords and len(w) > 3]
-    return list(set(keywords))[:5]
-
-# Streamlit UI
-st.title("🪞 Memory Mirror")
-st.markdown("Write. Reflect. Understand yourself.")
-
-menu = ["Write Entry", "View Reflections"]
-choice = st.sidebar.selectbox("Select an option", menu)
-
-if choice == "Write Entry":
-    st.subheader("📘 Daily Journal Entry")
-    text = st.text_area("What’s on your mind today?", height=200)
-
-    if st.button("Analyze & Save"):
-        if text.strip():
-            mood = analyze_sentiment(text)
-            keywords = extract_keywords(text)
-            today = str(datetime.date.today())
-            save_entry(today, text, mood, keywords)
-
-            st.success(f"Entry saved for {today}")
-            st.write(f"🧠 **Mood**: {mood}")
-            st.write(f"🔑 **Keywords**: {', '.join(keywords)}")
-        else:
-            st.warning("Please enter some text.")
-
-elif choice == "View Reflections":
-    st.subheader("📖 Past Reflections")
-    data = load_entries()
-
-    if not data:
-        st.info("No entries yet.")
+# Button to trigger analysis
+if st.button("Reflect"):
+    if journal_text.strip() == "":
+        st.warning("Please write something first.")
     else:
-        all_keywords = {}
-        for date, entry in sorted(data.items(), reverse=True):
-            st.markdown(f"### {date}")
-            st.markdown(f"**Mood**: {entry['mood']}")
-            st.markdown(f"**Keywords**: {', '.join(entry['keywords'])}")
-            st.markdown(f"_Entry_: {entry['text']}")
-            st.markdown("---")
+        # Analyze with AI
+        sentiment = sentiment_model(journal_text)[0]
+        summary = summarizer(journal_text, max_length=50, min_length=10, do_sample=False)[0]['summary_text']
+        tags = [word.lower() for word in summary.split() if len(word) > 4]
 
-            for kw in entry['keywords']:
-                all_keywords[kw] = all_keywords.get(kw, 0) + 1
+        # Memory comparison using semantic similarity
+        current_embedding = embedder.encode(journal_text, convert_to_tensor=True)
+        reflection = None
+        for entry in entries[::-1]:
+            past_embedding = embedder.encode(entry["text"], convert_to_tensor=True)
+            similarity = util.pytorch_cos_sim(current_embedding, past_embedding).item()
+            if similarity > 0.7:
+                reflection = f"You had a similar entry on {entry['date']}."
+                break
 
-        top_keywords = sorted(all_keywords.items(), key=lambda x: x[1], reverse=True)[:5]
-        if top_keywords:
-            st.markdown("### 💡 Top 5 Recurring Thoughts:")
-            for word, freq in top_keywords:
-                st.write(f"- {word} ({freq} times)")
+        # Save new entry
+        new_entry = {
+            "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "text": journal_text,
+            "sentiment": sentiment['label'],
+            "summary": summary,
+            "tags": list(set(tags)),
+        }
+        entries.append(new_entry)
+
+        with open(FILE, "w") as f:
+            json.dump(entries, f, indent=2)
+
+        # Show results
+        st.success("✅ Journal entry saved and analyzed!")
+        st.subheader("🧾 Summary")
+        st.write(summary)
+
+        st.subheader("😊 Mood Detected")
+        st.write(sentiment['label'])
+
+        st.subheader("🏷️ Key Themes")
+        st.write(", ".join(new_entry["tags"]))
+
+        if reflection:
+            st.subheader("🪞 Memory Mirror")
+            st.info(reflection)
+
+# Past entries section
+st.markdown("---")
+st.header("📜 Past Entries")
+
+for entry in entries[::-1]:
+    with st.expander(entry["date"]):
+        st.write(entry["text"])
+        st.markdown(f"**Sentiment:** {entry['sentiment']}")
+        st.markdown(f"**Summary:** {entry['summary']}")
+        st.markdown(f"**Tags:** {', '.join(entry['tags'])}")
+        
