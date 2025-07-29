@@ -32,7 +32,7 @@ def save_entries(email, entries):
     json.dump(entries, open(file, "w"), indent=2)
 
 def load_sentiment_model():
-    return pipeline("sentiment-analysis")
+    return pipeline("sentiment-analysis", device=-1)
 
 sentiment_model = load_sentiment_model()
 
