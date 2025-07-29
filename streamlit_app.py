@@ -157,11 +157,8 @@ if st.session_state.get("logged_in"):
         for e in entries:
             pdf.add_page()
             pdf.multi_cell(0, 10, f"{e['date']}\n\nSentiment: {e['sentiment']}\n\n{e['text']}")
-        pdf_buffer = io.BytesIO()
-        pdf.output(pdf_buffer)
-        pdf_buffer.seek(0)
-        st.download_button("Download PDF", data=pdf_buffer, file_name="my_journal.pdf", mime="application/pdf")
-
+        pdf_output = pdf.output(dest='S').encode('latin1')
+st.download_button("Download PDF", data=pdf_output, file_name="my_journal.pdf", mime="application/pdf")
     # --- Future Note ---
     elif page == "💌 Future Note":
         st.header("💌 Message to Future You")
