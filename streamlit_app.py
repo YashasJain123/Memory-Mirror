@@ -209,7 +209,7 @@ if st.session_state.get("logged_in"):
                     json.dump(note, f)
                 st.success("✅ Your note is saved and will unlock on the selected day.")
                 #------Deep Journal Insight-----
-        elif page == "💬 Deep Journal Insight (AI)":
+      elif page == "💬 Deep Journal Insight (AI)":
     st.header("💬 Deep Journal Insight")
     entries = load_entries(email)
 
