@@ -8,7 +8,7 @@ from fpdf import FPDF
 from hashlib import sha256
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, TextClassificationPipeline
-import random
+
 # --- Setup ---
 st.set_page_config("Memory Mirror", layout="wide")
 st.title("🧠 Memory Mirror - AI-Powered Journal")
@@ -142,8 +142,9 @@ if st.session_state.get("logged_in"):
 
     # --- Insights ---
     elif page == "🧠 Insights":
-st.subheader("🧠 AI Summary of Your Mood Trends")
-
+        import random
+        st.subheader("🧠 AI Summary of Your Mood Trends")
+        
 if entries:
     sentiments = [e["sentiment"] for e in entries]
     total = len(sentiments)
