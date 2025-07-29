@@ -7,7 +7,12 @@ import io
 from fpdf import FPDF
 from hashlib import sha256
 import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, TextClassificationPipeline
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, TextClassificationPipeline, pipeline
+@st.cache_resource
+def load_sentiment_model():
+    return pipeline("sentiment-analysis")
+
+sentiment_model = load_sentiment_model()
 
 # --- Setup ---
 st.set_page_config("Memory Mirror", layout="wide")
@@ -100,7 +105,7 @@ if st.session_state.get("logged_in"):
     name = st.session_state.name
     page = st.sidebar.radio("Navigate", [
         "📝 New Entry", "📜 Past Journals", "🧠 Insights",
-        "📊 Mood Graph", "📄 Download PDF", "💌 Future Note"
+        "📊 Mood Graph", "📄 Download PDF", "💌 Future Note", "💬 Deep Journal Insight (AI)"
     ])
 
     # --- Journal Entry ---
@@ -223,3 +228,53 @@ if st.session_state.get("logged_in"):
                 with open(future_file, "w") as f:
                     json.dump(note, f)
                 st.success("✅ Your note is saved and will unlock on the selected day.")
+                # Deep Analysis
+elif page == "💬 Deep Journal Insight (AI)":
+    st.header("💬 Deep Journal Insight")
+    entries = user["entries"]
+
+    if not entries:
+        st.warning("You need at least one journal entry.")
+        st.stop()
+
+    # Combine all journal texts
+    all_text = " ".join([e["text"] for e in entries if e["text"]])
+
+    # Load model
+    from transformers import pipeline
+    import torch
+
+    @st.cache_resource
+    def load_sentiment_model():
+        return pipeline("sentiment-analysis")
+
+    sentiment_model = load_sentiment_model()
+
+    # Chunk text for safe inference
+    max_chunk_size = 512
+    chunks = [all_text[i:i+max_chunk_size] for i in range(0, len(all_text), max_chunk_size)]
+
+    with st.spinner("Running deep sentiment analysis..."):
+        try:
+            results = [sentiment_model(chunk)[0] for chunk in chunks]
+
+            # Tally results
+            pos = sum(1 for r in results if r["label"] == "POSITIVE")
+            neg = sum(1 for r in results if r["label"] == "NEGATIVE")
+
+            # Display counts
+            st.subheader("🔍 AI Sentiment Summary")
+            st.markdown(f"✅ **Positive Passages**: {pos}")
+            st.markdown(f"❌ **Negative Passages**: {neg}")
+
+            # Insight based on trend
+            st.subheader("🧠 Overall Mood Insight")
+            if pos > neg:
+                st.success("The overall tone of your writing has been optimistic and positive. Keep reflecting — you're building emotional strength.")
+            elif neg > pos:
+                st.warning("Your entries reflect ongoing struggles or stress. Journaling is a good step. Consider reaching out to someone you trust too.")
+            else:
+                st.info("Your emotions appear balanced or neutral. This suggests thoughtful observation of your inner world.")
+
+        except Exception as e:
+            st.error("AI analysis failed: " + str(e))
