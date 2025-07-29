@@ -8,11 +8,10 @@ from fpdf import FPDF
 from hashlib import sha256
 from transformers import pipeline
 
-# --- Page Setup ---
+# --- Setup ---
 st.set_page_config("Memory Mirror", layout="wide")
 st.title("🧠 Memory Mirror - AI-Powered Journal")
 
-# --- Paths ---
 USERS_FILE = "users.json"
 
 def get_email_hash(email):
@@ -34,14 +33,24 @@ def save_entries(email, entries):
 
 def load_sentiment_model():
     try:
-        return pipeline("sentiment-analysis", device=-1)
+        model = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english", device=-1)
+        return model
     except Exception as e:
-        st.error("⚠️ Could not load AI model. Please try again later.")
+        st.error(f"❌ Failed to load sentiment model: {e}")
         return None
 
+# Load AI model
 sentiment_model = load_sentiment_model()
+if sentiment_model:
+    try:
+        test = sentiment_model("I feel great today!")[0]
+        st.sidebar.success(f"✅ AI model ready: {test['label']} ({test['score']:.2f})")
+    except Exception as e:
+        st.sidebar.error(f"Model test failed: {e}")
+else:
+    st.sidebar.error("⚠️ AI model unavailable.")
 
-# --- Authentication ---
+# --- Auth ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 
@@ -54,24 +63,24 @@ if not st.session_state.logged_in:
 
     if st.sidebar.button("Continue"):
         if not email or not password:
-            st.sidebar.error("Please enter both email and password.")
+            st.sidebar.error("Enter both email and password.")
         elif mode == "Login":
             if email in users and users[email] == password:
                 st.session_state.logged_in = True
                 st.session_state.email = email
                 st.rerun()
             else:
-                st.sidebar.error("Incorrect email or password.")
+                st.sidebar.error("Incorrect credentials.")
         else:
             if email in users:
-                st.sidebar.warning("Account already exists. Please login.")
+                st.sidebar.warning("Account already exists.")
             else:
                 users[email] = password
                 save_users(users)
                 st.success("Account created. Please log in.")
                 st.rerun()
 
-# --- Main App After Login ---
+# --- Main App ---
 if st.session_state.get("logged_in"):
     email = st.session_state.email
     entries = load_entries(email)
@@ -90,6 +99,7 @@ if st.session_state.get("logged_in"):
         "📊 Mood Graph", "📄 Download PDF", "💌 Future Note"
     ])
 
+    # --- Journal Entry ---
     if page == "📝 New Entry":
         st.header(f"Dear {name}, what’s on your mind today?")
         st.markdown("💡 *Tip: If you like to write your diary on paper and still want to use this app, use Google Camera (or any scanner) to copy the text and paste it here.*")
@@ -98,10 +108,10 @@ if st.session_state.get("logged_in"):
         if st.button("Save & Analyze"):
             if journal.strip():
                 if len(journal.split()) < 10:
-                    st.warning("✍️ Journal is too short for meaningful AI analysis. Try writing at least 10 words.")
+                    st.warning("✍️ Journal is too short for AI to understand. Try writing at least 10 words.")
                 elif sentiment_model:
                     try:
-                        sentiment = sentiment_model(journal)[0]
+                        sentiment = sentiment_model(journal.strip())[0]
                         new_entry = {
                             "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
                             "text": journal,
@@ -111,23 +121,22 @@ if st.session_state.get("logged_in"):
                         save_entries(email, entries)
                         st.success("✅ Entry saved!")
                         st.markdown(f"**Sentiment:** {sentiment['label']}")
-                    except:
-                        st.error("⚠️ AI analysis failed.")
+                    except Exception as e:
+                        st.error(f"❌ AI analysis failed: {e}")
                 else:
-                    st.warning("AI model unavailable.")
+                    st.warning("AI model not available.")
             else:
-                st.warning("Please write something first.")
+                st.warning("Write something first!")
 
+    # --- Past Journals ---
     elif page == "📜 Past Journals":
         st.header("📜 Your Journal Entries")
-        if not entries:
-            st.info("No entries yet.")
-        else:
-            for e in reversed(entries):
-                with st.expander(e["date"]):
-                    st.write(e["text"])
-                    st.markdown(f"**Sentiment:** {e['sentiment']}")
+        for e in reversed(entries):
+            with st.expander(e["date"]):
+                st.write(e["text"])
+                st.markdown(f"**Sentiment:** {e['sentiment']}")
 
+    # --- Insights ---
     elif page == "🧠 Insights":
         st.header("🧠 Mood Overview")
         if len(entries) < 2:
@@ -137,7 +146,7 @@ if st.session_state.get("logged_in"):
             counts = pd.Series(sentiments).value_counts()
             st.bar_chart(counts)
 
-            # Streak
+            # Streak Calculation
             streak = 1
             for i in range(len(entries) - 2, -1, -1):
                 d1 = datetime.strptime(entries[i]["date"], "%Y-%m-%d %H:%M").date()
@@ -148,10 +157,11 @@ if st.session_state.get("logged_in"):
                     break
             st.success(f"🔥 Current journaling streak: {streak} day(s)")
 
+    # --- Mood Graph ---
     elif page == "📊 Mood Graph":
         st.header("📊 Mood Over Time")
         if len(entries) < 2:
-            st.info("Not enough data for graph.")
+            st.info("Not enough entries for graph.")
         else:
             df = pd.DataFrame({
                 "Date": [pd.to_datetime(e["date"]) for e in entries],
@@ -160,6 +170,7 @@ if st.session_state.get("logged_in"):
             df.set_index("Date", inplace=True)
             st.line_chart(df)
 
+    # --- PDF Export ---
     elif page == "📄 Download PDF":
         st.header("📄 Export Your Journal")
         if not entries:
@@ -174,6 +185,7 @@ if st.session_state.get("logged_in"):
             pdf_output = pdf.output(dest='S').encode('latin1')
             st.download_button("Download PDF", data=pdf_output, file_name="my_journal.pdf", mime="application/pdf")
 
+    # --- Note to Future ---
     elif page == "💌 Future Note":
         st.header("💌 Message to Future You")
         future_file = f"{get_email_hash(email)}_future.json"
@@ -197,7 +209,7 @@ if st.session_state.get("logged_in"):
                 sentiments = [e["sentiment"] for e in entries]
                 pos = sentiments.count("POSITIVE")
                 neg = sentiments.count("NEGATIVE")
-                note_text = f"Hey {name}, you've written {len(entries)} entries. You've had {pos} positive and {neg} difficult moments. You're growing stronger. Keep going 💪"
+                note_text = f"Hey {name}, you've written {len(entries)} entries. You've had {pos} positive and {neg} tough days. You're doing great — keep going 💪"
 
             if st.button("Save Note"):
                 note = {
