@@ -226,8 +226,8 @@ if st.session_state.get("logged_in"):
         file = f"{get_email_hash(email)}.json"
         return json.load(open(file)) if os.path.exists(file) else []
         
-    elif page == "💬 Journal Chatbot":
-        st.header("💬 Chat with Your Journal-Aware AI")
+      elif page == "💬 Journal Chatbot":
+          st.header("💬 Chat with Your Journal-Aware AI")
 
         if "chat_history" not in st.session_state:
             st.session_state.chat_history = []
@@ -243,7 +243,7 @@ if st.session_state.get("logged_in"):
 
             # Improved prompt formatting for better GPT-2 guidance
             prompt = f"""The following are journal entries from a user:
-"{journal_context}"
+            "{journal_context}"
 
 Based on this, respond to their message with empathy, support, and understanding. Try to make the response emotionally intelligent and reflective.
 
