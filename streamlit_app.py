@@ -279,6 +279,6 @@ if st.session_state.logged_in:
                     st.warning("There are signs of emotional struggle. Journaling is a healthy outlet. You might consider talking to someone as well.")
                 else:
                     st.info("Your journaling shows a balance of emotions — that's a good sign of thoughtful reflection.")
-                except Exception as e:
-                    st.error(f"❌ AI analysis failed: {e}")
+            except Exception as e:
+                st.error(f"❌ AI analysis failed: {e}")
        
