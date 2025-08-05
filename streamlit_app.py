@@ -112,7 +112,8 @@ if st.session_state.get("logged_in"):
     name = st.session_state.name
     page = st.sidebar.radio("Navigate", [
         "📝 New Entry", "📜 Past Journals", "🧠 Insights",
-        "📊 Mood Graph", "💌 Future Note", "💬 Deep Journal Insight (AI)"
+        "📊 Mood Graph", "💌 Future Note", "💬 Deep Journal Insight (AI)",
+        "Journal ChatBot"
     ])
 
     # --- Journal Entry ---
@@ -260,4 +261,44 @@ if st.session_state.get("logged_in"):
 
             except Exception as e:
                 st.error(f"❌ AI analysis failed: {e}")
+        # JOURNAL CHATBOT
+               elif page == "💬 Journal Chatbot":
+                  st.header("💬 Chat with Your Journal-Aware AI")
+
+    # Load entries function (in case it's not defined elsewhere)
+    def load_entries(email):
+        from hashlib import sha256
+        import os,json
+        file = f"{sha256(email.encode()).hexdigest()}.json"
+        return json.load(open(file)) if os.path.exists(file) else []
+
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+
+    # Load last 5 journal entries
+    entries = load_entries(email)
+    journal_context = " ".join([e.get("text", "") for e in entries[-5:]]) if entries else "No journal history available."
+
+    # Chat input
+    user_input = st.text_input("You:", key="chat_input")
+
+    if user_input:
+        st.session_state.chat_history.append(("You", user_input))
+
+        # Build AI prompt
+        prompt = f"These are my past journal reflections:\n{journal_context}\n\nNow, respond to this message like a supportive AI companion:\n\"{user_input}\""
+
+        try:
+            with st.spinner("🤖 Thinking..."):
+                response = reflection_model(prompt, max_length=150)[0]["generated_text"]
+                reply = response.split(user_input)[-1].strip()
+        except Exception as e:
+            reply = f"❌ AI response failed: {e}"
+
+        st.session_state.chat_history.append(("AI", reply))
+
+    # Show conversation history
+    for sender, message in reversed(st.session_state.chat_history):
+        st.markdown(f"**{sender}:** {message}")
+        
        
