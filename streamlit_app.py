@@ -112,8 +112,7 @@ if st.session_state.get("logged_in"):
     name = st.session_state.name
     page = st.sidebar.radio("Navigate", [
         "📝 New Entry", "📜 Past Journals", "🧠 Insights",
-        "📊 Mood Graph", "💌 Future Note", "💬 Deep Journal Insight (AI)"
-        "💬 Journal Chatbot",
+        "📊 Mood Graph", "💌 Future Note", "💬 Journal Chatbot",
     ])
 
     # --- Journal Entry ---
@@ -221,48 +220,7 @@ if st.session_state.get("logged_in"):
                 with open(future_file, "w") as f:
                     json.dump(note, f)
                 st.success("✅ Your note is saved and will unlock on the selected day.")
-       # --- Deep Journal Insight (AI) ---
-    elif page == "💬 Deep Journal Insight (AI)":
-        st.header("💬 Deep Journal Insight")
-        entries = load_entries(email)
-
-        if not entries:
-            st.warning("You need at least one journal entry.")
-            st.stop()
-
-        # Combine all journal texts
-        all_text = " ".join([e["text"] for e in entries if e["text"]])
-
-        st.info("This section uses real AI to analyze your full journaling history using a pre-trained sentiment model.")
-
-        max_chunk_size = 512
-        chunks = [all_text[i:i+max_chunk_size] for i in range(0, len(all_text), max_chunk_size)]
-
-        with st.spinner("Running AI sentiment analysis..."):
-            try:
-                results = [sentiment_model(chunk)[0] for chunk in chunks]
-                pos = sum(1 for r in results if r["label"] == "POSITIVE")
-                neg = sum(1 for r in results if r["label"] == "NEGATIVE")
-                neu = len(results) - pos - neg
-
-                st.subheader("📊 AI Sentiment Breakdown")
-                st.markdown(f"✅ Positive Chunks: **{pos}**")
-                st.markdown(f"❌ Negative Chunks: **{neg}**")
-                st.markdown(f"➖ Neutral/Uncertain: **{neu}**")
-
-                # AI Summary
-                st.subheader("🧠 AI Reflection")
-                if pos > neg:
-                    st.success("Your journaling shows a generally positive emotional tone. Keep it up — consistency is key to emotional growth.")
-                elif neg > pos:
-                    st.warning("There are signs of emotional struggle. Journaling is a healthy outlet. You might consider talking to someone as well.")
-                else:
-                    st.info("Your journaling shows a balance of emotions — that's a good sign of thoughtful reflection.")
-
-            except Exception as e:
-                st.error(f"❌ AI analysis failed: {e}")
        
-
     # --- Journal Chatbot ---
     elif page == "💬 Journal Chatbot":
         st.header("💬 Chat with Your Journal-Aware AI")
