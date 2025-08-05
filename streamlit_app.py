@@ -243,7 +243,7 @@ if st.session_state.logged_in:
         st.warning("You need at least one journal entry for AI analysis.")
         st.stop()
 
-    st.subheader("📊 AI Sentiment Overview")
+        st.subheader("📊 AI Sentiment Overview")
     try:
         all_text = " ".join([e.get("text", "") for e in entries])
         chunks = [all_text[i:i+512] for i in range(0, len(all_text), 512)]
@@ -259,7 +259,7 @@ if st.session_state.logged_in:
     except Exception as e:
         st.error(f"❌ AI analysis failed: {e}")
 
-    st.subheader("🧠 AI Reflection (Generated)")
+        st.subheader("🧠 AI Reflection (Generated)")
 
     if reflection_model:
         recent_text = " ".join([e.get("text", "") for e in entries[-3:]])
