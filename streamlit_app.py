@@ -265,7 +265,7 @@ if st.session_state.logged_in:
                     st.success(reflection)
             except Exception as e:
                 st.warning(f"AI reflection failed: {e}")
-        else:
+           else:
                 st.info("GPT-2 model not available.")              
                 st.markdown(f"✅ Positive Chunks: **{pos}**")
                 st.markdown(f"❌ Negative Chunks: **{neg}**")
