@@ -229,48 +229,52 @@ if st.session_state.logged_in:
 
     # --- Deep Journal Insight ---
     elif page == "💬 Deep Journal Insight (AI)":
-        st.header("💬 Deep Journal Insight (AI)")
-     try:
+    st.header("💬 Deep Journal Insight (AI)")
+
+    # 🔄 Load journal entries safely
+    try:
         entries = load_entries(email)
-     except:
-        entries = []
-     if not isinstance(entries, list):
+    except:
         entries = []
 
-     if len(entries) == 0:
-        st.warning("You need at least one journal entry.")
+    if not isinstance(entries, list):
+        entries = []
+
+    if len(entries) == 0:
+        st.warning("You need at least one journal entry for AI analysis.")
         st.stop()
 
-    # --- Sentiment Breakdown ---
-        st.subheader("📊 AI Sentiment Overview")
+    # 📊 AI Sentiment Analysis
+    st.subheader("📊 AI Sentiment Overview")
 
-          try:
-            all_text = " ".join([e.get("text", "") for e in entries])
-            chunks = [all_text[i:i+512] for i in range(0, len(all_text), 512)]
-            results = [sentiment_model(chunk)[0] for chunk in chunks]
+    try:
+        all_text = " ".join([e.get("text", "") for e in entries])
+        chunks = [all_text[i:i+512] for i in range(0, len(all_text), 512)]
+        results = [sentiment_model(chunk)[0] for chunk in chunks]
 
-            pos = sum(1 for r in results if r["label"] == "POSITIVE")
-            neg = sum(1 for r in results if r["label"] == "NEGATIVE")
-            neu = len(results) - pos - neg
+        pos = sum(1 for r in results if r["label"] == "POSITIVE")
+        neg = sum(1 for r in results if r["label"] == "NEGATIVE")
+        neu = len(results) - pos - neg
 
         st.markdown(f"✅ Positive Chunks: **{pos}**")
         st.markdown(f"❌ Negative Chunks: **{neg}**")
         st.markdown(f"➖ Neutral/Other: **{neu}**")
-       except Exception as e:
-         st.error(f"❌ AI analysis failed: {e}")
+    except Exception as e:
+        st.error(f"❌ AI analysis failed: {e}")
 
-    # --- GPT-2 AI Reflection ---
-      st.subheader("🧠 AI Reflection (Generated)")
+    # 🤖 GPT-2 AI Reflection
+    st.subheader("🧠 AI Reflection (Generated)")
 
-      if reflection_model:
+    if reflection_model:
         recent_text = " ".join([e.get("text", "") for e in entries[-3:]])
         prompt = f"Reflect on this person's emotional journey:\n{recent_text}\nReflection:"
-      try:
+
+        try:
             with st.spinner("🤖 Generating personalized insight..."):
-                reflection = reflection_model(prompt, max_length=100)[0]["generated_text"]
+                reflection = reflection_model(prompt, max_length=100)[0]['generated_text']
                 reflection = reflection.split("Reflection:")[-1].strip()
                 st.success(reflection)
-      except Exception as e:
+        except Exception as e:
             st.error(f"❌ AI reflection failed: {e}")
     else:
         st.info("⚠️ GPT-2 model not available.")
