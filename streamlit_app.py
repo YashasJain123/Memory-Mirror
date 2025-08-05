@@ -229,7 +229,7 @@ if st.session_state.logged_in:
 
     # --- Deep Journal Insight ---
     elif page == "💬 Deep Journal Insight (AI)":
-    st.header("💬 Deep Journal Insight (AI)")
+        st.header("💬 Deep Journal Insight (AI)")
     try:
         entries = load_entries(email)
     except:
