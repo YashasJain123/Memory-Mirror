@@ -263,17 +263,17 @@ if st.session_state.get("logged_in"):
                 st.error(f"❌ AI analysis failed: {e}")
         # JOURNAL CHATBOT
                elif page == "💬 Journal Chatbot":
-                    st.header("💬 Chat with Your Journal-Aware AI")
+                   st.header("💬 Chat with Your Journal-Aware AI")
 
     # Load entries function (in case it's not defined elsewhere)
-    def load_entries(email):
-        from hashlib import sha256
-        import os,json
-        file = f"{sha256(email.encode()).hexdigest()}.json"
+                def load_entries(email):
+                   from hashlib import sha256
+                   import os,json
+                   file = f"{sha256(email.encode()).hexdigest()}.json"
         return json.load(open(file)) if os.path.exists(file) else []
 
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
+               if "chat_history" not in st.session_state:
+                  st.session_state.chat_history = []
 
     # Load last 5 journal entries
     entries = load_entries(email)
