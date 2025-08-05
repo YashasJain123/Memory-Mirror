@@ -4,7 +4,6 @@ import os
 from datetime import datetime, timedelta
 import pandas as pd
 import io
-from fpdf import FPDF
 from hashlib import sha256
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification, TextClassificationPipeline
@@ -112,7 +111,7 @@ if st.session_state.get("logged_in"):
     name = st.session_state.name
     page = st.sidebar.radio("Navigate", [
         "📝 New Entry", "📜 Past Journals", "🧠 Insights",
-        "📊 Mood Graph", "💌 Future Note", "💬 Journal ChatBot"
+        "📊 Mood Graph", "💌 Future Note",
     ])
 
     # --- Journal Entry ---
@@ -221,44 +220,4 @@ if st.session_state.get("logged_in"):
                     json.dump(note, f)
                 st.success("✅ Your note is saved and will unlock on the selected day.")
        
-    # --- Journal Chatbot ---
-    def load_entries(email):
-        file = f"{get_email_hash(email)}.json"
-        return json.load(open(file)) if os.path.exists(file) else []
-        
-      elif page == "💬 Journal Chatbot":
-          st.header("💬 Chat with Your Journal-Aware AI")
-
-        if "chat_history" not in st.session_state:
-            st.session_state.chat_history = []
-
-        # Load recent journal entries and keep only the last 2 for prompt
-        entries = load_entries(email)
-        journal_context = "\n".join([e.get("text", "") for e in entries[-2:]]) if entries else "No journal history available."
-
-        user_input = st.text_input("You:", key="chat_input")
-
-        if user_input:
-            st.session_state.chat_history.append(("You", user_input))
-
-            # Improved prompt formatting for better GPT-2 guidance
-            prompt = f"""The following are journal entries from a user:
-            "{journal_context}"
-
-Based on this, respond to their message with empathy, support, and understanding. Try to make the response emotionally intelligent and reflective.
-
-User message: "{user_input}"
-AI:""" 
-
-            try:
-                with st.spinner("🤖 Thinking..."):
-                    response = reflection_model(prompt, max_length=100, num_return_sequences=1)[0]["generated_text"]
-                    reply = response.split("AI:")[-1].strip()
-            except Exception as e:
-                reply = f"❌ AI response failed: {e}"
-
-            st.session_state.chat_history.append(("AI", reply))
-
-        # Show full chat history
-        for sender, message in reversed(st.session_state.chat_history):
-            st.markdown(f"**{sender}:** {message}")
+    
