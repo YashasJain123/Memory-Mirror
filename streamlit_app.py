@@ -255,7 +255,8 @@ if st.session_state.logged_in:
 
         # --- GPT-2 AI Reflection ---
         entries = load_entries(email)
-        st.subheader("🧠 AI Reflection (Generated)")
+
+st.subheader("🧠 AI Reflection (Generated)")
 
 if reflection_model:
     if len(entries) == 0:
