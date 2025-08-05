@@ -112,7 +112,7 @@ if st.session_state.get("logged_in"):
     name = st.session_state.name
     page = st.sidebar.radio("Navigate", [
         "📝 New Entry", "📜 Past Journals", "🧠 Insights",
-        "📊 Mood Graph", "💌 Future Note", "💬 Deep Journal Insight (AI)"
+        "📊 Mood Graph", "💌 Future Note", "💬 Journal ChatBot"
     ])
 
     # --- Journal Entry ---
