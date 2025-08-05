@@ -229,9 +229,8 @@ if st.session_state.logged_in:
 
     # --- Deep Journal Insight ---
     elif page == "💬 Deep Journal Insight (AI)":
-    st.header("💬 Deep Journal Insight (AI)")
+        st.header("💬 Deep Journal Insight (AI)")
 
-    # 🔄 Load journal entries safely
     try:
         entries = load_entries(email)
     except:
@@ -244,9 +243,7 @@ if st.session_state.logged_in:
         st.warning("You need at least one journal entry for AI analysis.")
         st.stop()
 
-    # 📊 AI Sentiment Analysis
     st.subheader("📊 AI Sentiment Overview")
-
     try:
         all_text = " ".join([e.get("text", "") for e in entries])
         chunks = [all_text[i:i+512] for i in range(0, len(all_text), 512)]
@@ -262,7 +259,6 @@ if st.session_state.logged_in:
     except Exception as e:
         st.error(f"❌ AI analysis failed: {e}")
 
-    # 🤖 GPT-2 AI Reflection
     st.subheader("🧠 AI Reflection (Generated)")
 
     if reflection_model:
@@ -271,7 +267,7 @@ if st.session_state.logged_in:
 
         try:
             with st.spinner("🤖 Generating personalized insight..."):
-                reflection = reflection_model(prompt, max_length=100)[0]['generated_text']
+                reflection = reflection_model(prompt, max_length=100)[0]["generated_text"]
                 reflection = reflection.split("Reflection:")[-1].strip()
                 st.success(reflection)
         except Exception as e:
