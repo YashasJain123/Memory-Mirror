@@ -259,7 +259,7 @@ if st.session_state.get("logged_in"):
 
             except Exception as e:
                 st.error(f"❌ AI analysis failed: {e}")
-                   reflection = reflection.split("Reflection:")[-1].strip()
+                reflection = reflection.split("Reflection:")[-1].strip()
                 st.success(reflection)
         except Exception as e:
             st.error(f"❌ AI reflection failed: {e}")
