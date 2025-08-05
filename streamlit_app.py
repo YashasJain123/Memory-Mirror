@@ -255,30 +255,19 @@ if st.session_state.logged_in:
 
         # --- GPT-2 AI Reflection ---
         st.subheader("🧠 AI Reflection (Generated)")
-        if reflection_model:
-            recent_text = " ".join([e["text"] for e in entries[-3:]])
-            prompt = f"Reflect on this person's emotional journey:\n{recent_text}\nReflection:"
-            try:
-                with st.spinner("🤖 Generating personalized insight..."):
-                    reflection = reflection_model(prompt, max_length=100)[0]['generated_text']
-                    reflection = reflection.split("Reflection:")[-1].strip()
-                    st.success(reflection)
-            except Exception as e:
-                st.warning(f"AI reflection failed: {e}")
-           else:
-                st.info("GPT-2 model not available.")              
-                st.markdown(f"✅ Positive Chunks: **{pos}**")
-                st.markdown(f"❌ Negative Chunks: **{neg}**")
-                st.markdown(f"➖ Neutral/Uncertain: **{neu}**")
 
-                # AI Summary
-                st.subheader("🧠 AI Reflection")
-                if pos > neg:
-                    st.success("Your journaling shows a generally positive emotional tone. Keep it up — consistency is key to emotional growth.")
-                elif neg > pos:
-                    st.warning("There are signs of emotional struggle. Journaling is a healthy outlet. You might consider talking to someone as well.")
-                else:
-                    st.info("Your journaling shows a balance of emotions — that's a good sign of thoughtful reflection.")
-            except Exception as e:
-                st.error(f"❌ AI analysis failed: {e}")
-       
+if reflection_model:
+    recent_text = " ".join([e["text"] for e in entries[-3:]])
+    prompt = f"Reflect on this person's emotional journey:\n{recent_text}\nReflection:"
+    
+    try:
+        with st.spinner("🤖 Generating personalized insight..."):
+            reflection = reflection_model(prompt, max_length=100)[0]['generated_text']
+            reflection = reflection.split("Reflection:")[-1].strip()
+            st.success(reflection)
+    
+    except Exception as e:
+        st.error(f"❌ AI reflection failed: {e}")
+
+else:
+    st.info("⚠️ GPT-2 model not available.")
