@@ -263,7 +263,7 @@ if st.session_state.get("logged_in"):
                 st.error(f"❌ AI analysis failed: {e}")
         # JOURNAL CHATBOT
                elif page == "💬 Journal Chatbot":
-                  st.header("💬 Chat with Your Journal-Aware AI")
+                    st.header("💬 Chat with Your Journal-Aware AI")
 
     # Load entries function (in case it's not defined elsewhere)
     def load_entries(email):
