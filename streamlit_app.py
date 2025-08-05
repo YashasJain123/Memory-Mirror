@@ -7,7 +7,7 @@ import io
 from fpdf import FPDF
 from hashlib import sha256
 import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification, TextClassificationPipeline
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, TextClassificationPipeline, pipeline
 @st.cache_resource
 def load_sentiment_model():
     try:
