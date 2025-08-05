@@ -257,17 +257,19 @@ if st.session_state.logged_in:
         st.subheader("🧠 AI Reflection (Generated)")
 
 if reflection_model:
-    recent_text = " ".join([e["text"] for e in entries[-3:]])
-    prompt = f"Reflect on this person's emotional journey:\n{recent_text}\nReflection:"
-    
-    try:
-        with st.spinner("🤖 Generating personalized insight..."):
-            reflection = reflection_model(prompt, max_length=100)[0]['generated_text']
-            reflection = reflection.split("Reflection:")[-1].strip()
-            st.success(reflection)
-    
-    except Exception as e:
-        st.error(f"❌ AI reflection failed: {e}")
-
+    if len(entries) == 0:
+        st.warning("You need at least one journal entry for AI reflection.")
+        st.stop()
+    else:
+        recent_text = " ".join([e.get("text", "") for e in entries[-3:] if "text" in e])
+        prompt = f"Reflect on this person's emotional journey:\n{recent_text}\nReflection:"
+        
+        try:
+            with st.spinner("🤖 Generating personalized insight..."):
+                reflection = reflection_model(prompt, max_length=100)[0]['generated_text']
+                reflection = reflection.split("Reflection:")[-1].strip()
+                st.success(reflection)
+        except Exception as e:
+            st.error(f"❌ AI reflection failed: {e}")
 else:
     st.info("⚠️ GPT-2 model not available.")
