@@ -21,6 +21,12 @@ def load_sentiment_model():
         return None
         sentiment_model = load_sentiment_model()
 
+@st.cache_resource
+def load_reflection_model():
+    return pipeline("text-generation", model="gpt2")
+
+reflection_model = load_reflection_model()
+
 # --- Setup ---
 st.set_page_config("Memory Mirror", layout="wide")
 st.title("🧠 Memory Mirror - AI-Powered Journal")
