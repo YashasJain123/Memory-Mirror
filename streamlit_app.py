@@ -254,6 +254,7 @@ if st.session_state.logged_in:
                 st.error(f"❌ AI analysis failed: {e}")
 
         # --- GPT-2 AI Reflection ---
+        entries = load_entries(email)
         st.subheader("🧠 AI Reflection (Generated)")
 
 if reflection_model:
