@@ -222,6 +222,9 @@ if st.session_state.get("logged_in"):
                 st.success("✅ Your note is saved and will unlock on the selected day.")
        
     # --- Journal Chatbot ---
+    def load_entries(email):
+    file = f"{get_email_hash(email)}.json"
+    return json.load(open(file)) if os.path.exists(file) else []
     elif page == "💬 Journal Chatbot":
         st.header("💬 Chat with Your Journal-Aware AI")
 
