@@ -230,28 +230,28 @@ if st.session_state.logged_in:
     # --- Deep Journal Insight ---
     elif page == "💬 Deep Journal Insight (AI)":
         st.header("💬 Deep Journal Insight (AI)")
-    try:
+     try:
         entries = load_entries(email)
-    except:
+     except:
         entries = []
-    if not isinstance(entries, list):
+     if not isinstance(entries, list):
         entries = []
 
-    if len(entries) == 0:
+     if len(entries) == 0:
         st.warning("You need at least one journal entry.")
         st.stop()
 
     # --- Sentiment Breakdown ---
-      st.subheader("📊 AI Sentiment Overview")
+        st.subheader("📊 AI Sentiment Overview")
 
-      try:
-        all_text = " ".join([e.get("text", "") for e in entries])
-        chunks = [all_text[i:i+512] for i in range(0, len(all_text), 512)]
-        results = [sentiment_model(chunk)[0] for chunk in chunks]
+          try:
+            all_text = " ".join([e.get("text", "") for e in entries])
+            chunks = [all_text[i:i+512] for i in range(0, len(all_text), 512)]
+            results = [sentiment_model(chunk)[0] for chunk in chunks]
 
-        pos = sum(1 for r in results if r["label"] == "POSITIVE")
-        neg = sum(1 for r in results if r["label"] == "NEGATIVE")
-        neu = len(results) - pos - neg
+            pos = sum(1 for r in results if r["label"] == "POSITIVE")
+            neg = sum(1 for r in results if r["label"] == "NEGATIVE")
+            neu = len(results) - pos - neg
 
         st.markdown(f"✅ Positive Chunks: **{pos}**")
         st.markdown(f"❌ Negative Chunks: **{neg}**")
